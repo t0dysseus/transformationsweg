@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Möbiusschleifen (Raster)</title>
+<style>
+:root{--bg:#f4f4f6;--fg:#1c1c22;--btn:#ffffff;--bd:#c9c9d2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101014;--fg:#ececf2;--btn:#1d1d25;--bd:#3a3a46}}
+:root[data-theme="dark"]{--bg:#101014;--fg:#ececf2;--btn:#1d1d25;--bd:#3a3a46}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+#c{position:fixed;inset:0;width:100%;height:100%;touch-action:none;cursor:grab}
+#ui{position:fixed;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:0 12px}
+button{background:var(--btn);color:var(--fg);border:1px solid var(--bd);border-radius:999px;padding:8px 16px;font:inherit;font-size:14px;cursor:pointer}
+button[aria-pressed="true"]{border-color:var(--fg)}
+h1{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));left:16px;margin:0;font-size:18px;font-weight:600}
+p{position:fixed;top:calc(40px + env(safe-area-inset-top,0px));left:16px;right:16px;margin:0;font-size:13px;opacity:.7}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<h1>Möbiusschleifen</h1>
+<p>Ziehen zum Drehen · Scrollen zum Zoomen</p>
+<div id="ui">
+  <button id="bSpin" aria-pressed="true">Rotation</button>
+  <button id="bRot" aria-pressed="true">Schwenken</button>
+  <button id="bBall" aria-pressed="false">Kugel</button>
+  <button id="bReset">Zurücksetzen</button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const canvas=document.getElementById("c");
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(45,1,0.1,100);
+const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
+scene.add(new THREE.AmbientLight(0xffffff,0.6));
+const l1=new THREE.DirectionalLight(0xffffff,0.8);l1.position.set(3,4,5);scene.add(l1);
+const l2=new THREE.DirectionalLight(0xffffff,0.4);l2.position.set(-3,-4,-5);scene.add(l2);
+const TAU=Math.PI*2;
+const dark=matchMedia("(prefers-color-scheme: dark)");
+const wireMat=new THREE.MeshBasicMaterial({color:0x000000,wireframe:true,transparent:true,opacity:0.9});
+const setWire=()=>wireMat.color.set(dark.matches?0xffffff:0x000000);
+setWire();
+if(dark.addEventListener)dark.addEventListener("change",setWire);else dark.addListener(setWire);
+
+const shapes=[],allProxies=[];
+
+// Mittellinie durch verschiebbare Punkte (unsichtbar, groß), Band mit festgelegter Zahl von Halbdrehungen
+function makeShape(cfg){
+  const {pt,N,HW,k,prof,ref}=cfg,U=420,V=10;
+  const group=new THREE.Group();scene.add(group);
+  const posArr=new Float32Array((U+1)*(V+1)*3),idx=[];
+  for(let i=0;i<U;i++)for(let j=0;j<V;j++){const a=i*(V+1)+j,b=a+V+1;idx.push(a,b,a+1,b,b+1,a+1);}
+  const g=new THREE.BufferGeometry();
+  g.setAttribute("position",new THREE.BufferAttribute(posArr,3));g.setIndex(idx);
+  const mesh=new THREE.Mesh(g,wireMat);mesh.frustumCulled=false;group.add(mesh);
+
+  const start=[];for(let q=0;q<N;q++)start.push(pt(q/N*TAU));
+  let len=0;for(let q=0;q<N;q++)len+=start[q].distanceTo(start[(q+1)%N]);
+  const rad=Math.min(0.3,0.42*len/N);
+  const sh={group,proxies:[],Cs:[],Ns:[],off:0.07*HW/0.15};
+  const ball=new THREE.Mesh(new THREE.SphereGeometry(0.07,24,16),new THREE.MeshStandardMaterial({color:0x111111,roughness:0.3}));
+  ball.add(new THREE.Mesh(new THREE.SphereGeometry(0.09,24,16),new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.BackSide})));
+  ball.scale.setScalar(HW/0.15);ball.visible=false;group.add(ball);sh.ball=ball;
+  start.forEach(p=>{
+    const m=new THREE.Mesh(new THREE.SphereGeometry(rad,8,6),new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false,depthTest:false}));
+    m.position.copy(p);m.userData.sh=sh;group.add(m);sh.proxies.push(m);allProxies.push(m);
+  });
+
+  let phiPrev=k*Math.PI;
+  sh.rebuild=function(){
+    const curve=new THREE.CatmullRomCurve3(sh.proxies.map(m=>m.position),true,"centripetal");
+    const C=[],T=[],Uv=[];
+    for(let i=0;i<U;i++)C.push(curve.getPoint(i/U));
+    C.push(C[0].clone());
+    for(let i=0;i<=U;i++)T.push(C[(i+1)%U].clone().sub(C[(i+U-1)%U]).normalize());
+    const r=ref==="plane"?V3(-T[0].y,T[0].x,0):V3(0,0,1);
+    if(r.lengthSq()<0.01||Math.abs(T[0].dot(r.clone().normalize()))>0.9)r.set(Math.abs(T[0].x)<0.9?1:0,Math.abs(T[0].x)<0.9?0:1,0);
+    const u=r.addScaledVector(T[0],-r.dot(T[0])).normalize();
+    Uv.push(u.clone());
+    for(let i=1;i<=U;i++){u.addScaledVector(T[i],-u.dot(T[i])).normalize();Uv.push(u.clone());}
+    const delta=Math.atan2(T[0].dot(new THREE.Vector3().crossVectors(Uv[0],Uv[U])),Uv[0].dot(Uv[U]));
+    const target=k*Math.PI-delta;
+    const phiEnd=target+TAU*Math.round((phiPrev-target)/TAU);
+    phiPrev=phiEnd;
+    for(let i=0;i<=U;i++){
+      const ph=phiEnd*prof(i/U);
+      const w=Uv[i].clone().multiplyScalar(Math.cos(ph)).addScaledVector(new THREE.Vector3().crossVectors(T[i],Uv[i]),Math.sin(ph));
+      sh.Cs[i]=C[i];sh.Ns[i]=new THREE.Vector3().crossVectors(T[i],w);
+      for(let j=0;j<=V;j++){
+        const v=(-1+2*j/V)*HW,o=(i*(V+1)+j)*3;
+        posArr[o]=C[i].x+w.x*v;posArr[o+1]=C[i].y+w.y*v;posArr[o+2]=C[i].z+w.z*v;
+      }
+    }
+    g.attributes.position.needsUpdate=true;
+  };
+  sh.reset=function(){sh.proxies.forEach((m,q)=>m.position.copy(start[q]));phiPrev=k*Math.PI;sh.rebuild();};
+  sh.rebuild();shapes.push(sh);return sh;
+}
+
+// 1) Drei Schlaufen (rund): eine Halbdrehung zwischen den beiden Durchgängen der oberen Kreuzung
+(function(){
+  const S=1.3,W0=0.8,A=0.62,B=0.38,ZA=0.15;
+  const spS=(Math.PI/3+0.1)/TAU,spE=(5*Math.PI/3-0.1)/TAU;
+  makeShape({N:18,HW:0.09,k:1,ref:"plane",
+    pt:t=>{const c=Math.cos(t),h=-0.32+0.6*c+0.32*c*c+0.4*c*c*c;return V3(W0*(A+B*c)*Math.sin(3*t)*S,h*S,ZA*Math.sin(t)*S);},
+    prof:x=>{const q=Math.min(1,Math.max(0,(x-spS)/(spE-spS)));return q*q*(3-2*q);}});
+})();
+// 2) Dreieck: drei Halbdrehungen, eine pro Ecke
+(function(){
+  const A=0.4,S=0.62;
+  makeShape({N:12,HW:0.12,k:3,ref:"z",
+    pt:t=>V3(S*(2*Math.cos(t)+A*Math.cos(2*t)),S*(2*Math.sin(t)-A*Math.sin(2*t)),0),
+    prof:x=>x+0.1*Math.sin(6*Math.PI*x)/Math.PI});
+})();
+// 3) Triquetra: eine Halbdrehung
+(function(){
+  const S=0.45;
+  makeShape({N:12,HW:0.15,k:1,ref:"z",
+    pt:t=>V3(Math.sin(t)+2*Math.sin(2*t),Math.cos(t)-2*Math.cos(2*t),-Math.sin(3*t)).multiplyScalar(S),
+    prof:x=>x});
+})();
+
+// Anordnung: nebeneinander (Querformat) bzw. untereinander (Hochformat)
+const GAP=3.3;let fitDist=10;
+function layout(){
+  const a=innerWidth/innerHeight,horiz=a>=1.15;
+  shapes.forEach((s,i)=>{const o=(i-1)*GAP;s.group.position.set(horiz?o:0,horiz?0:-o,0);});
+  const W=horiz?3*GAP:GAP,H=horiz?GAP:3*GAP,f=2*Math.tan(Math.PI/8);
+  fitDist=Math.max(W/(f*a),H/f)*1.2;
+}
+
+// Bedienung
+const R0=0.35;
+let rx=R0,ry=0,ts=0,zf=1,auto=true,spin=true,bt=0,drag=null,active=null,lx=0,ly=0,last=performance.now();
+const ray=new THREE.Raycaster(),ndc=new THREE.Vector2(),plane=new THREE.Plane();
+const setRay=e=>{const r=canvas.getBoundingClientRect();ndc.set((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);ray.setFromCamera(ndc,camera);};
+const hitHandle=()=>ray.intersectObjects(allProxies,false)[0];
+const bRot=document.getElementById("bRot");
+const bSpin=document.getElementById("bSpin"),bBall=document.getElementById("bBall");
+bRot.onclick=()=>{auto=bRot.getAttribute("aria-pressed")!=="true";bRot.setAttribute("aria-pressed",auto);};
+bSpin.onclick=()=>{spin=bSpin.getAttribute("aria-pressed")!=="true";bSpin.setAttribute("aria-pressed",spin);};
+bBall.onclick=()=>{const v=bBall.getAttribute("aria-pressed")!=="true";bBall.setAttribute("aria-pressed",v);shapes.forEach(s=>s.ball.visible=v);};
+document.getElementById("bReset").onclick=()=>{shapes.forEach(s=>s.reset());rx=R0;ry=0;ts=0;zf=1;auto=false;spin=false;bRot.setAttribute("aria-pressed","false");bSpin.setAttribute("aria-pressed","false");};
+canvas.addEventListener("pointerdown",e=>{
+  setRay(e);const hit=hitHandle();
+  if(hit){active=hit.object;plane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(V3(0,0,0)),active.getWorldPosition(V3(0,0,0)));drag="h";}
+  else{drag="r";lx=e.clientX;ly=e.clientY;}
+  canvas.setPointerCapture(e.pointerId);canvas.style.cursor="grabbing";
+});
+canvas.addEventListener("pointerup",e=>{drag=null;active=null;setRay(e);canvas.style.cursor=hitHandle()?"pointer":"grab";});
+canvas.addEventListener("pointercancel",()=>{drag=null;active=null;canvas.style.cursor="grab";});
+canvas.addEventListener("pointermove",e=>{
+  setRay(e);
+  if(drag==="h"){
+    const p=V3(0,0,0),sh=active.userData.sh;
+    if(ray.ray.intersectPlane(plane,p)){sh.group.updateMatrixWorld(true);active.position.copy(sh.group.worldToLocal(p));sh.rebuild();}
+  }else if(drag==="r"){ry+=(e.clientX-lx)*0.01;rx+=(e.clientY-ly)*0.01;lx=e.clientX;ly=e.clientY;}
+  else canvas.style.cursor=hitHandle()?"pointer":"grab";
+});
+canvas.addEventListener("wheel",e=>{e.preventDefault();zf=Math.min(2,Math.max(0.4,zf+e.deltaY*0.001));},{passive:false});
+function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();layout();}
+addEventListener("resize",resize);resize();
+(function loop(){requestAnimationFrame(loop);
+  const now=performance.now(),dt=Math.min((now-last)/1000,0.1);last=now;
+  if(auto&&!drag)ts+=dt;
+  if(spin&&!drag)ry+=dt*0.24;
+  bt+=dt;
+  shapes.forEach(s=>{
+    s.group.rotation.set(rx,ry+0.7*Math.sin(ts*0.6),0);
+    if(!s.ball.visible)return;
+    const Un=s.Cs.length-1,q=(bt*0.0955*Un)%(2*Un),lap=Math.floor(q/Un),f=q-lap*Un,i=Math.floor(f),a=f-i;
+    const p=s.Cs[i].clone().lerp(s.Cs[i+1],a);
+    const n=s.Ns[i].clone().lerp(s.Ns[i+1],a).normalize().multiplyScalar(lap?-s.off:s.off);
+    s.ball.position.copy(p).add(n);
+  });
+  camera.position.set(0,0,fitDist*zf);
+  renderer.render(scene,camera);})();
+</script>
+</body>
+</html>
