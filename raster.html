@@ -16,17 +16,34 @@ button{background:var(--btn);color:var(--fg);border:1px solid var(--bd);border-r
 button[aria-pressed="true"]{border-color:var(--fg)}
 h1{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));left:16px;margin:0;font-size:18px;font-weight:600}
 p{position:fixed;top:calc(40px + env(safe-area-inset-top,0px));left:16px;right:16px;margin:0;font-size:13px;opacity:.7}
+#info{position:fixed;left:12px;right:12px;bottom:calc(72px + env(safe-area-inset-bottom,0px));max-width:640px;margin:0 auto;max-height:46vh;overflow:auto;background:var(--btn);border:1px solid var(--bd);border-radius:14px;padding:12px 16px;font-size:13px;line-height:1.45}
+#info[hidden]{display:none}
+#info h2{margin:0 0 4px;font-size:15px}
+#info h3{margin:12px 0 2px;font-size:13px}
+#info .src{opacity:.65;font-size:12px}
+@media (max-width:520px){#info{bottom:calc(108px + env(safe-area-inset-bottom,0px))}}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-<h1>Möbiusschleifen</h1>
+<h1>Möbiusschleifen &amp; Kleinsche Flasche</h1>
 <p>Ziehen zum Drehen · Scrollen zum Zoomen</p>
 <div id="ui">
   <button id="bSpin" aria-pressed="true">Rotation</button>
   <button id="bRot" aria-pressed="true">Schwenken</button>
   <button id="bBall" aria-pressed="false">Kugel</button>
+  <button id="bInfo" aria-pressed="false">Ansätze</button>
   <button id="bReset">Zurücksetzen</button>
+</div>
+<div id="info" hidden>
+  <h2>Ansätze zur Möbiusschleife</h2>
+  <div class="src">nach Peter F. Stephan, Designing Concerns, S. 412</div>
+  <h3>1 · Concern-Ansatz (Stephan)</h3>
+  <div>Instanzen und ihre Wechselwirkungen liegen auf der einen Fläche des Bandes. Es gibt keine Hierarchie zwischen ihnen, und Abstände lassen sich nicht objektiv bestimmen. Ein interner Beobachter kann Positionen nur situativ beschreiben: Beim einen Durchgang ist etwas oben, beim nächsten unten. Eine Meta-Instanz läge selbst auf derselben Fläche und könnte das Ganze nicht überblicken. Aktivitäten und Intensitäten sind selbstorganisiert und emergent; nach außen wirken nur unmittelbare Einflüsse. Das entspricht einem konstruktivistischen Erkenntnismodell informationell geschlossener Subjekte.</div>
+  <h3>2 · Der „libidinöse Körper“ (Lyotard)</h3>
+  <div>Ausgangspunkt von Lyotards „Ökonomie des Wunsches“: Er weitet enge ökonomische Vorstellungen aus, indem der Austausch libidinöser Energien (Intensitäten) ins Zentrum rückt. Das Band steht dafür als Figur, in der Innen und Außen ineinander übergehen.</div>
+  <h3>3 · Möbiusband und Unterscheidung (Spencer-Brown, Clanville)</h3>
+  <div>Ein Kreis trennt durch seine Grenze Innen und Außen und erzeugt so einen Wert. Die Möbiuslinie unterscheidet nichts. Ihr Wert liegt allein darin, Möbiuslinie zu sein.</div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -124,12 +141,31 @@ function makeShape(cfg){
     prof:x=>x});
 })();
 
+// 4) Kleinsche Flasche (Achter-Immersion, selbstdurchdringend)
+(function(){
+  const U=96,V=32,S=0.42,A=2;
+  const group=new THREE.Group();scene.add(group);
+  const pos=new Float32Array((U+1)*(V+1)*3),idx=[];
+  for(let i=0;i<U;i++)for(let j=0;j<V;j++){const a=i*(V+1)+j,b=a+V+1;idx.push(a,b,a+1,b,b+1,a+1);}
+  for(let i=0;i<=U;i++){
+    const u=i/U*TAU,cu=Math.cos(u),su=Math.sin(u),ch=Math.cos(u/2),sh2=Math.sin(u/2);
+    for(let j=0;j<=V;j++){
+      const v=j/V*TAU,r=A+ch*Math.sin(v)-sh2*Math.sin(2*v),o=(i*(V+1)+j)*3;
+      pos[o]=r*cu*S;pos[o+1]=r*su*S;pos[o+2]=(sh2*Math.sin(v)+ch*Math.sin(2*v))*S;
+    }
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute("position",new THREE.BufferAttribute(pos,3));g.setIndex(idx);
+  const mesh=new THREE.Mesh(g,wireMat);mesh.frustumCulled=false;group.add(mesh);
+  shapes.push({group,proxies:[],Cs:[],Ns:[],ball:{visible:false},reset(){}});
+})();
+
 // Anordnung: nebeneinander (Querformat) bzw. untereinander (Hochformat)
 const GAP=3.3;let fitDist=10;
 function layout(){
   const a=innerWidth/innerHeight,horiz=a>=1.15;
-  shapes.forEach((s,i)=>{const o=(i-1)*GAP;s.group.position.set(horiz?o:0,horiz?0:-o,0);});
-  const W=horiz?3*GAP:GAP,H=horiz?GAP:3*GAP,f=2*Math.tan(Math.PI/8);
+  shapes.forEach((s,i)=>{const o=(i-1.5)*GAP;s.group.position.set(horiz?o:0,horiz?0:-o,0);});
+  const W=horiz?4*GAP:GAP,H=horiz?GAP:4*GAP,f=2*Math.tan(Math.PI/8);
   fitDist=Math.max(W/(f*a),H/f)*1.2;
 }
 
@@ -143,7 +179,9 @@ const bRot=document.getElementById("bRot");
 const bSpin=document.getElementById("bSpin"),bBall=document.getElementById("bBall");
 bRot.onclick=()=>{auto=bRot.getAttribute("aria-pressed")!=="true";bRot.setAttribute("aria-pressed",auto);};
 bSpin.onclick=()=>{spin=bSpin.getAttribute("aria-pressed")!=="true";bSpin.setAttribute("aria-pressed",spin);};
-bBall.onclick=()=>{const v=bBall.getAttribute("aria-pressed")!=="true";bBall.setAttribute("aria-pressed",v);shapes.forEach(s=>s.ball.visible=v);};
+bBall.onclick=()=>{const v=bBall.getAttribute("aria-pressed")!=="true";bBall.setAttribute("aria-pressed",v);shapes.forEach(s=>{if(s.Cs.length)s.ball.visible=v;});};
+const bInfo=document.getElementById("bInfo"),info=document.getElementById("info");
+bInfo.onclick=()=>{const v=bInfo.getAttribute("aria-pressed")!=="true";bInfo.setAttribute("aria-pressed",v);info.hidden=!v;};
 document.getElementById("bReset").onclick=()=>{shapes.forEach(s=>s.reset());rx=R0;ry=0;ts=0;zf=1;auto=false;spin=false;bRot.setAttribute("aria-pressed","false");bSpin.setAttribute("aria-pressed","false");};
 canvas.addEventListener("pointerdown",e=>{
   setRay(e);const hit=hitHandle();
