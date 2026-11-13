@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Möbiusschleife – Generator</title>
+<style>
+:root{--bg:#333333;--fg:#f2f2f7;--btn:#111116;--bd:#3a3a46;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;margin:0}
+body{background:#333333;color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+#c{position:fixed;inset:0;width:100%;height:100%;touch-action:none;cursor:pointer}
+#ui{position:fixed;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:0 12px;pointer-events:none}
+#ui button{pointer-events:auto}
+button{background:var(--btn);color:var(--fg);border:1px solid var(--bd);border-radius:999px;padding:8px 16px;font:inherit;font-size:14px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+button[aria-pressed="true"]{border-color:#ffffff}
+#bJump{border-color:#ffffff;font-weight:600}
+#bTrail{position:fixed;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+@media (max-width:620px){#bTrail{bottom:calc(60px + env(safe-area-inset-bottom,0px))}}
+.pop{position:fixed;left:0;top:0;display:none;opacity:0;transform:translate(-50%,calc(-100% - 6px));width:max-content;max-width:min(300px,80vw);box-sizing:border-box;padding:10px 12px;background:#fff;color:#000;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.45);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;text-align:left;z-index:5}
+.pop img,.pop iframe{display:block;width:100%;max-width:280px;border:0;border-radius:8px;margin:0 0 8px;background:#eee}
+.pop iframe{height:170px}
+.pop img{height:auto;max-height:200px;object-fit:contain}
+.pop .ptxt{white-space:pre-wrap;overflow-wrap:anywhere}
+.pop>:last-child{margin-bottom:0}
+#panel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,92vw);max-height:min(82vh,760px);overflow:auto;box-sizing:border-box;padding:16px;background:#111116;border:1px solid #3a3a46;border-radius:16px;z-index:10;display:none}
+#panel.open{display:block}
+#panel .row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+#panel .row label{flex:none}
+#panel .row input[type=range]{flex:1}
+#panel output{min-width:1.5em;text-align:right;font-variant-numeric:tabular-nums}
+#panel .item{margin-bottom:12px;padding-top:10px;border-top:1px solid #2a2a34}
+#panel .lab{font-size:13px;opacity:.7;margin-bottom:6px}
+#panel textarea,#panel input[type=text]{width:100%;box-sizing:border-box;background:#1c1c24;color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;font:inherit;font-size:14px}
+#panel textarea{resize:vertical;margin-bottom:6px}
+#panel .row2{display:flex;gap:6px;align-items:center}
+#panel .fbtn{flex:none;background:var(--btn);border:1px solid var(--bd);border-radius:999px;padding:7px 12px;font-size:13px;cursor:pointer}
+#panel .fname{font-size:12px;opacity:.7;max-width:8em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#panel .x{padding:4px 10px}
+#panel .end{justify-content:flex-end;margin:4px 0 0}
+#bCreate{border-color:#ffffff;font-weight:600}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <button id="bJump">Sprung / halten</button>
+  <button id="bView" aria-pressed="false">Außenansicht</button>
+  <button id="bEdit">Inhalte</button>
+  <button id="bReset">Neu starten</button>
+</div>
+<div id="panel" class="open" role="dialog">
+  <div class="row"><label for="cnt">Anzahl Textpunkte</label><input id="cnt" type="range" min="4" max="12" step="1" value="6"><output id="cntv">6</output></div>
+  <div id="list"></div>
+  <div class="row end"><button id="bCreate">Erstellen</button></div>
+</div>
+<button id="bTrail" aria-pressed="true">Leuchtspur: an</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const canvas=document.getElementById("c");
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
+renderer.setClearColor(0x000000,1);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x000000);
+const camera=new THREE.PerspectiveCamera(60,1,0.02,100);
+const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
+const TAU=Math.PI*2;
+const group=new THREE.Group();scene.add(group);
+
+// Das Original: Dreiecks-Band mit drei Halbdrehungen, eine pro Ecke
+const S=0.62,A=0.4,N=18,HW=0.12,K=3,U=420,V=10;
+const pt=t=>V3(S*(2*Math.cos(t)+A*Math.cos(2*t)),S*(2*Math.sin(t)-A*Math.sin(2*t)),0);
+const prof=x=>x+0.1*Math.sin(6*Math.PI*x)/Math.PI;
+const curve=new THREE.CatmullRomCurve3(Array.from({length:N},(_,q)=>pt(q/N*TAU)),true,"centripetal");
+const C=[],T=[],Uv=[],Ns=[];
+for(let i=0;i<U;i++)C.push(curve.getPoint(i/U));
+C.push(C[0].clone());
+for(let i=0;i<=U;i++)T.push(C[(i+1)%U].clone().sub(C[(i+U-1)%U]).normalize());
+const u0=V3(0,0,1).addScaledVector(T[0],-T[0].z).normalize();
+Uv.push(u0.clone());
+const uu=u0.clone();
+for(let i=1;i<=U;i++){uu.addScaledVector(T[i],-uu.dot(T[i])).normalize();Uv.push(uu.clone());}
+const delta=Math.atan2(T[0].dot(new THREE.Vector3().crossVectors(Uv[0],Uv[U])),Uv[0].dot(Uv[U]));
+const target=K*Math.PI-delta,phiEnd=target+TAU*Math.round((K*Math.PI-target)/TAU);
+const posArr=new Float32Array((U+1)*(V+1)*3),idx=[];
+for(let i=0;i<U;i++)for(let j=0;j<V;j++){const a=i*(V+1)+j,b=a+V+1;idx.push(a,b,a+1,b,b+1,a+1);}
+for(let i=0;i<=U;i++){
+  const ph=phiEnd*prof(i/U);
+  const w=Uv[i].clone().multiplyScalar(Math.cos(ph)).addScaledVector(new THREE.Vector3().crossVectors(T[i],Uv[i]),Math.sin(ph));
+  Ns[i]=new THREE.Vector3().crossVectors(T[i],w);
+  for(let j=0;j<=V;j++){const v=(-1+2*j/V)*HW,o=(i*(V+1)+j)*3;posArr[o]=C[i].x+w.x*v;posArr[o+1]=C[i].y+w.y*v;posArr[o+2]=C[i].z+w.z*v;}
+}
+const g=new THREE.BufferGeometry();
+g.setAttribute("position",new THREE.BufferAttribute(posArr,3));
+g.setIndex(idx);
+
+// Unsichtbarer Tiefenpuffer für das Band, damit die Rückseite verdeckt wird
+const occMat=new THREE.MeshBasicMaterial({colorWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1});
+const occBand=new THREE.Mesh(g,occMat);occBand.frustumCulled=false;group.add(occBand);
+
+// Reines weißes Raster ohne Farben
+const bandMat=new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:0.85});
+const band=new THREE.Mesh(g,bandMat);band.frustumCulled=false;group.add(band);
+let loopLen=0;for(let i=0;i<U;i++)loopLen+=C[i].distanceTo(C[i+1]);
+
+// Fortschritt zählen (ohne das Raster einzufärben)
+const visited=new Uint8Array(U);let visitedCount=0;
+function markVisited(tt){
+  const t=tt-Math.floor(tt),i=Math.min(Math.floor(t*U+0.5),U),m=i%U;
+  if(!visited[m]){visited[m]=1;visitedCount++;}
+}
+
+// Pose auf dem Band: tt = fortlaufender Parameter (ganze Zahlen = Umläufe). Nach jedem Umlauf wechselt die Seite.
+const pP=V3(0,0,0),pF=V3(0,0,0),pN=V3(0,0,0);
+function pose(tt){
+  const lap=Math.floor(tt),t=tt-lap,f=t*U,i=Math.min(Math.floor(f),U-1),a=f-i;
+  pP.copy(C[i]).lerp(C[i+1],a);
+  pF.copy(T[i]).lerp(T[i+1],a).normalize();
+  pN.copy(Ns[i]).lerp(Ns[i+1],a).normalize().multiplyScalar(((lap%2)+2)%2?-1:1);
+}
+
+// Einfarbiger Neon-Streifen mit dezenterem Glow und geringem Abstand zum Band
+const MAXPT=12000;
+const trPos=new Float32Array(MAXPT*3);
+const trGeo=new THREE.BufferGeometry();
+trGeo.setAttribute("position",new THREE.BufferAttribute(trPos,3));
+trGeo.setDrawRange(0,0);
+
+// Textur für kontrollierten Neon-Glow
+const glowTex=(()=>{
+  const c=document.createElement("canvas");c.width=c.height=128;
+  const x=c.getContext("2d"),r=x.createRadialGradient(64,64,0,64,64,64);
+  r.addColorStop(0,"rgba(255,255,255,1)");
+  r.addColorStop(0.22,"rgba(150,250,255,0.85)");
+  r.addColorStop(0.5,"rgba(0,235,255,0.28)");
+  r.addColorStop(1,"rgba(0,200,255,0)");
+  x.fillStyle=r;x.fillRect(0,0,128,128);
+  return new THREE.CanvasTexture(c);
+})();
+
+// Äußerer Neon-Glow-Layer (doppelte Breite: 30)
+const glowMat=new THREE.PointsMaterial({
+  size:30,
+  sizeAttenuation:false,
+  map:glowTex,
+  color:0x2C8CBE,
+  transparent:true,
+  opacity:0.35,
+  blending:THREE.AdditiveBlending,
+  depthTest:true,
+  depthWrite:false
+});
+const trailGlow=new THREE.Points(trGeo,glowMat);
+trailGlow.frustumCulled=false;
+group.add(trailGlow);
+
+// Innerer scharfer Neon-Kern (doppelte Breite: 11)
+const coreMat=new THREE.PointsMaterial({
+  size:11,
+  sizeAttenuation:false,
+  map:glowTex,
+  color:0x006B99,
+  transparent:true,
+  opacity:0.9,
+  blending:THREE.AdditiveBlending,
+  depthTest:true,
+  depthWrite:false
+});
+const trailCore=new THREE.Points(trGeo,coreMat);
+trailCore.frustumCulled=false;
+group.add(trailCore);
+
+let trCount=0,trOn=true;
+function addPt(){
+  const k=trCount%MAXPT,o=k*3;
+  // Geringer Abstand (0.012) über der jeweiligen Band-Seite
+  trPos[o]=pP.x+pN.x*0.012;
+  trPos[o+1]=pP.y+pN.y*0.012;
+  trPos[o+2]=pP.z+pN.z*0.012;
+  trCount++;
+}
+function flushTrail(){
+  trGeo.setDrawRange(0,Math.min(trCount,MAXPT));
+  trGeo.attributes.position.needsUpdate=true;
+}
+
+// Sprung (tippen), Durchlaufen (halten) und Autoplay (Taste S)
+const DT=0.22/loopLen,DUR=0.34,RUNV=1.1/loopLen;
+let panelOpen=true;
+let pos=0,jmp=null,queued=false,jumps=0,holding=false,autoplay=false,prevT=0,prevH=0;
+function jump(){if(jmp){queued=true;return;}jmp={from:pos,to:pos+DT,p:0};}
+const startHold=()=>{if(!holding){holding=true;jump();}};
+const endHold=()=>{holding=false;};
+function reset(){
+  pos=0;prevT=0;prevH=0;jmp=null;queued=false;jumps=0;autoplay=false;visited.fill(0);visitedCount=0;trCount=0;flushTrail();
+  first=true;
+}
+// Weg zwischen zwei Zeitpunkten abtasten
+function sweep(t0,h0,t1,h1){
+  const dist=Math.abs(t1-t0)*loopLen;
+  if(dist<1e-6)return;
+  const n=Math.ceil(dist/0.01);
+  for(let s=1;s<=n;s++){
+    const a=s/n,ts=t0+(t1-t0)*a;
+    markVisited(ts);
+    if(trOn){pose(ts);addPt();}
+  }
+  if(trOn)flushTrail();
+}
+
+// Ansicht
+let outer=false,rx=0.35,ry=0,drag=false,lx=0,ly=0,first=true,last=performance.now();
+const camPos=V3(0,0,0),camUp=V3(0,0,1),want=V3(0,0,0),tgt=V3(0,0,0);
+const bView=document.getElementById("bView"),bTrail=document.getElementById("bTrail"),bJump=document.getElementById("bJump");
+bView.onclick=()=>{outer=!outer;bView.setAttribute("aria-pressed",outer);bView.textContent=outer?"Auf dem Band":"Außenansicht";first=true;};
+bTrail.onclick=()=>{trOn=!trOn;bTrail.setAttribute("aria-pressed",trOn);bTrail.textContent="Leuchtspur: "+(trOn?"an":"aus");trailGlow.visible=trOn;trailCore.visible=trOn;if(!trOn){trCount=0;flushTrail();}};
+document.getElementById("bReset").onclick=reset;
+bJump.addEventListener("pointerdown",e=>{e.preventDefault();if(panelOpen)return;autoplay=false;startHold();});
+["pointerup","pointerleave","pointercancel"].forEach(ev=>bJump.addEventListener(ev,endHold));
+document.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>b.blur()));
+addEventListener("keydown",e=>{
+  if(panelOpen||/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))return;
+  if(e.code==="Space"){e.preventDefault();autoplay=false;if(!e.repeat)startHold();}
+  else if(e.code==="KeyS"&&!e.repeat){autoplay=!autoplay;if(autoplay)holding=false;}
+});
+addEventListener("keyup",e=>{if(e.code==="Space")endHold();});
+addEventListener("blur",endHold);
+canvas.addEventListener("pointerdown",e=>{canvas.setPointerCapture(e.pointerId);if(outer){drag=true;lx=e.clientX;ly=e.clientY;}else if(!panelOpen){autoplay=false;startHold();}});
+canvas.addEventListener("pointermove",e=>{if(!drag)return;ry+=(e.clientX-lx)*0.01;rx+=(e.clientY-ly)*0.01;lx=e.clientX;ly=e.clientY;});
+canvas.addEventListener("pointerup",()=>{drag=false;endHold();});
+canvas.addEventListener("pointercancel",()=>{drag=false;endHold();});
+function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+addEventListener("resize",resize);resize();
+
+
+// ===== Generator: Textpunkte gleichmäßig über das Band (zwei Umläufe = beide Seiten) =====
+const MINP=4,MAXP=12,LAPS=2,CORD=0.4;
+const items=Array.from({length:MAXP},()=>({text:"",url:"",data:"",name:""}));
+let count=6,points=[];
+try{
+  const s=JSON.parse(localStorage.getItem("moebius-gen")||"null");
+  if(s){count=Math.min(MAXP,Math.max(MINP,(s.count|0)||6));(s.items||[]).slice(0,MAXP).forEach((it,i)=>{items[i].text=String(it.text||"");items[i].url=String(it.url||"");});}
+}catch(e){}
+const panel=document.getElementById("panel"),list=document.getElementById("list"),cnt=document.getElementById("cnt"),cntv=document.getElementById("cntv");
+function saveCfg(){try{localStorage.setItem("moebius-gen",JSON.stringify({count,items:items.map(i=>({text:i.text,url:i.url}))}));}catch(e){}}
+function renderList(){
+  list.innerHTML="";
+  for(let i=0;i<count;i++){
+    const it=items[i],box=document.createElement("div");box.className="item";
+    const lab=document.createElement("div");lab.className="lab";lab.textContent="Punkt "+(i+1);
+    const ta=document.createElement("textarea");ta.rows=2;ta.placeholder="Text";ta.value=it.text;ta.oninput=()=>{it.text=ta.value;};
+    const row=document.createElement("div");row.className="row2";
+    const url=document.createElement("input");url.type="text";url.placeholder="Bild-, GIF- oder iframe-Adresse (optional)";url.value=it.url;url.oninput=()=>{it.url=url.value.trim();};
+    const fl=document.createElement("label");fl.className="fbtn";fl.appendChild(document.createTextNode("Bild/GIF laden"));
+    const fi=document.createElement("input");fi.type="file";fi.accept="image/*";fi.hidden=true;fl.appendChild(fi);
+    const nm=document.createElement("span");nm.className="fname";nm.textContent=it.data?it.name:"";
+    fi.onchange=()=>{const f=fi.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{it.data=r.result;it.name=f.name;nm.textContent=f.name;};r.readAsDataURL(f);};
+    const x=document.createElement("button");x.className="x";x.textContent="×";x.setAttribute("aria-label","Entfernen");
+    x.onclick=()=>{it.data="";it.name="";nm.textContent="";fi.value="";};
+    row.append(url,fl,nm,x);box.append(lab,ta,row);list.appendChild(box);
+  }
+}
+cnt.value=count;cntv.textContent=count;renderList();
+cnt.oninput=()=>{count=+cnt.value;cntv.textContent=count;renderList();};
+const setPanel=o=>{panelOpen=o;panel.classList.toggle("open",o);if(o){holding=false;autoplay=false;renderList();}};
+document.getElementById("bEdit").onclick=()=>setPanel(!panelOpen);
+
+const dotGeo=new THREE.SphereGeometry(0.018,10,8),dotMat=new THREE.MeshBasicMaterial({color:0xffffff});
+const cordGeo=new THREE.BufferGeometry().setFromPoints([V3(0,0,0),V3(1,0,0)]),cordMat=new THREE.LineBasicMaterial({color:0xffffff});
+const okUrl=u=>/^(https?:)?\/\//i.test(u)||!/^[a-z][a-z0-9+.-]*:/i.test(u);
+function loadMedia(p){
+  p.loaded=true;const it=p.item;let m=null;
+  if(it.data){m=document.createElement("img");m.src=it.data;m.alt="";}
+  else if(it.url&&okUrl(it.url)){
+    if(/\.(jpe?g|png|gif|webp|avif|svg)([?#].*)?$/i.test(it.url)){m=document.createElement("img");m.src=it.url;m.alt="";m.referrerPolicy="no-referrer";}
+    else{m=document.createElement("iframe");m.src=it.url;m.loading="lazy";m.referrerPolicy="no-referrer";m.setAttribute("sandbox","allow-scripts allow-same-origin allow-popups allow-forms allow-presentation");m.setAttribute("allow","autoplay; fullscreen");}
+  }
+  if(m)p.el.insertBefore(m,p.el.firstChild);
+}
+function clearPoints(){points.forEach(p=>{group.remove(p.line);group.remove(p.dot);p.el.remove();});points=[];}
+function build(){
+  clearPoints();
+  for(let m=0;m<count;m++){
+    const it=items[m],ttm=(m+0.5)*LAPS/count;
+    pose(ttm);
+    const base=pP.clone().addScaledVector(pN,0.012),N=pN.clone();
+    const dot=new THREE.Mesh(dotGeo,dotMat);dot.position.copy(base);group.add(dot);
+    const line=new THREE.Line(cordGeo,cordMat);line.position.copy(base);line.quaternion.setFromUnitVectors(V3(1,0,0),N);line.frustumCulled=false;line.visible=false;group.add(line);
+    const el=document.createElement("div");el.className="pop";
+    if(it.text){const tx=document.createElement("div");tx.className="ptxt";tx.textContent=it.text;el.appendChild(tx);}
+    document.body.appendChild(el);
+    points.push({tt:ttm,base,N,line,dot,el,s:0,shown:false,loaded:false,item:{text:it.text,url:it.url,data:it.data},empty:!(it.text||it.url||it.data)});
+  }
+  saveCfg();
+}
+document.getElementById("bCreate").onclick=()=>{build();reset();setPanel(false);};
+
+const tmpW=V3(0,0,0),tmpV=V3(0,0,0);
+function updatePops(tt,dt){
+  if(!points.length)return;
+  const spacing=LAPS*loopLen/points.length,R=Math.min(1.8,0.6*spacing),B=Math.min(0.5,0.35*spacing);
+  const k=1-Math.exp(-dt*8),W=innerWidth,H=innerHeight;
+  points.forEach(p=>{
+    let d=p.tt-tt;d-=LAPS*Math.round(d/LAPS);
+    const dist=d*loopLen,on=!p.empty&&!panelOpen&&dist>-B&&dist<R;
+    p.s+=((on?1:0)-p.s)*k;
+    if(!on&&p.s<0.01){p.s=0;if(p.shown){p.shown=false;p.line.visible=false;p.el.style.display="none";}return;}
+    if(!p.loaded)loadMedia(p);
+    p.shown=true;p.line.visible=true;p.line.scale.x=Math.max(CORD*p.s,1e-4);
+    tmpW.copy(p.base).addScaledVector(p.N,CORD*p.s);group.localToWorld(tmpW);
+    tmpV.copy(tmpW).applyMatrix4(camera.matrixWorldInverse);
+    if(tmpV.z>-0.05){p.el.style.display="none";return;}
+    tmpW.project(camera);
+    p.el.style.display="block";p.el.style.opacity=p.s;
+    const w=p.el.offsetWidth,h=p.el.offsetHeight;
+    const sx=Math.min(Math.max((tmpW.x+1)/2*W,w/2+8),W-w/2-8);
+    const sy=Math.min(Math.max((1-tmpW.y)/2*H,h+14),H-64);
+    p.el.style.left=sx+"px";p.el.style.top=sy+"px";
+  });
+}
+
+(function loop(){requestAnimationFrame(loop);
+  const now=performance.now(),dt=Math.min((now-last)/1000,0.1);last=now;
+  let tt=pos,hop=0;
+  if(jmp){
+    jmp.p=Math.min(1,jmp.p+dt/DUR);
+    const e=jmp.p*jmp.p*(3-2*jmp.p);
+    tt=jmp.from+(jmp.to-jmp.from)*e;hop=0.13*Math.sin(Math.PI*jmp.p);
+    if(jmp.p>=1){pos=jmp.to;tt=pos;hop=0;jumps++;jmp=null;if(queued){queued=false;jump();}}
+  }else if(holding||autoplay){pos+=RUNV*dt;tt=pos;}
+  sweep(prevT,prevH,tt,hop);prevT=tt;prevH=hop;
+  pose(tt);
+  if(outer){
+    group.rotation.set(rx,ry,0);
+    if(!drag)ry+=dt*0.24;
+    camera.up.set(0,1,0);camera.position.set(0,0,4.6);camera.lookAt(0,0,0);
+  }else{
+    group.rotation.set(0,0,0);
+    want.copy(pP).addScaledVector(pN,0.32+hop*0.5).addScaledVector(pF,-0.65);
+    tgt.copy(pP).addScaledVector(pF,0.35).addScaledVector(pN,0.03);
+    if(first){camPos.copy(want);camUp.copy(pN);first=false;}
+    const k=1-Math.exp(-dt*7);
+    camPos.lerp(want,k);camUp.lerp(pN,k).normalize();
+    camera.up.copy(camUp);camera.position.copy(camPos);camera.lookAt(tgt);
+  }
+  group.updateMatrixWorld(true);camera.updateMatrixWorld();
+  updatePops(tt,dt);
+  renderer.render(scene,camera);})();
+</script>
+</body>
+</html>
