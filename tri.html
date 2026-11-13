@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Auf dem Band: Neon-Spur</title>
+<style>
+:root{--bg:#333333;--fg:#f2f2f7;--btn:#111116;--bd:#3a3a46;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;margin:0}
+body{background:#333333;color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+#c{position:fixed;inset:0;width:100%;height:100%;touch-action:none;cursor:pointer}
+#ui{position:fixed;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:0 12px;pointer-events:none}
+#ui button{pointer-events:auto}
+button{background:var(--btn);color:var(--fg);border:1px solid var(--bd);border-radius:999px;padding:8px 16px;font:inherit;font-size:14px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+button[aria-pressed="true"]{border-color:#ffffff}
+#bJump{border-color:#ffffff;font-weight:600}
+#bTrail{position:fixed;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+@media (max-width:620px){#bTrail{bottom:calc(60px + env(safe-area-inset-bottom,0px))}}
+h1{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));left:16px;margin:0;font-size:18px;font-weight:600}
+#sub{position:fixed;top:calc(40px + env(safe-area-inset-top,0px));left:16px;right:16px;font-size:13px;opacity:.7}
+#hud{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));left:16px;font-size:13px;line-height:1.5;font-variant-numeric:tabular-nums}
+#hud b{font-weight:600}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<h1>Auf dem Band</h1>
+<div id="sub">Leertaste tippen: Sprung · gedrückt halten: durchlaufen · Taste S: Autoplay</div>
+<div id="hud"></div>
+<div id="ui">
+  <button id="bJump">Sprung / halten</button>
+  <button id="bView" aria-pressed="false">Außenansicht</button>
+  <button id="bReset">Neu starten</button>
+</div>
+<button id="bTrail" aria-pressed="true">Leuchtspur: an</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const canvas=document.getElementById("c");
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
+renderer.setClearColor(0x000000,1);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x000000);
+const camera=new THREE.PerspectiveCamera(60,1,0.02,100);
+const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
+const TAU=Math.PI*2;
+const group=new THREE.Group();scene.add(group);
+
+// Das Original: Dreiecks-Band mit drei Halbdrehungen, eine pro Ecke
+const S=0.62,A=0.4,N=18,HW=0.12,K=3,U=420,V=10;
+const pt=t=>V3(S*(2*Math.cos(t)+A*Math.cos(2*t)),S*(2*Math.sin(t)-A*Math.sin(2*t)),0);
+const prof=x=>x+0.1*Math.sin(6*Math.PI*x)/Math.PI;
+const curve=new THREE.CatmullRomCurve3(Array.from({length:N},(_,q)=>pt(q/N*TAU)),true,"centripetal");
+const C=[],T=[],Uv=[],Ns=[];
+for(let i=0;i<U;i++)C.push(curve.getPoint(i/U));
+C.push(C[0].clone());
+for(let i=0;i<=U;i++)T.push(C[(i+1)%U].clone().sub(C[(i+U-1)%U]).normalize());
+const u0=V3(0,0,1).addScaledVector(T[0],-T[0].z).normalize();
+Uv.push(u0.clone());
+const uu=u0.clone();
+for(let i=1;i<=U;i++){uu.addScaledVector(T[i],-uu.dot(T[i])).normalize();Uv.push(uu.clone());}
+const delta=Math.atan2(T[0].dot(new THREE.Vector3().crossVectors(Uv[0],Uv[U])),Uv[0].dot(Uv[U]));
+const target=K*Math.PI-delta,phiEnd=target+TAU*Math.round((K*Math.PI-target)/TAU);
+const posArr=new Float32Array((U+1)*(V+1)*3),idx=[];
+for(let i=0;i<U;i++)for(let j=0;j<V;j++){const a=i*(V+1)+j,b=a+V+1;idx.push(a,b,a+1,b,b+1,a+1);}
+for(let i=0;i<=U;i++){
+  const ph=phiEnd*prof(i/U);
+  const w=Uv[i].clone().multiplyScalar(Math.cos(ph)).addScaledVector(new THREE.Vector3().crossVectors(T[i],Uv[i]),Math.sin(ph));
+  Ns[i]=new THREE.Vector3().crossVectors(T[i],w);
+  for(let j=0;j<=V;j++){const v=(-1+2*j/V)*HW,o=(i*(V+1)+j)*3;posArr[o]=C[i].x+w.x*v;posArr[o+1]=C[i].y+w.y*v;posArr[o+2]=C[i].z+w.z*v;}
+}
+const g=new THREE.BufferGeometry();
+g.setAttribute("position",new THREE.BufferAttribute(posArr,3));
+g.setIndex(idx);
+
+// Unsichtbarer Tiefenpuffer für das Band, damit die Rückseite verdeckt wird
+const occMat=new THREE.MeshBasicMaterial({colorWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1});
+const occBand=new THREE.Mesh(g,occMat);occBand.frustumCulled=false;group.add(occBand);
+
+// Reines weißes Raster ohne Farben
+const bandMat=new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:0.85});
+const band=new THREE.Mesh(g,bandMat);band.frustumCulled=false;group.add(band);
+let loopLen=0;for(let i=0;i<U;i++)loopLen+=C[i].distanceTo(C[i+1]);
+
+// Fortschritt zählen (ohne das Raster einzufärben)
+const visited=new Uint8Array(U);let visitedCount=0;
+function markVisited(tt){
+  const t=tt-Math.floor(tt),i=Math.min(Math.floor(t*U+0.5),U),m=i%U;
+  if(!visited[m]){visited[m]=1;visitedCount++;}
+}
+
+// Pose auf dem Band: tt = fortlaufender Parameter (ganze Zahlen = Umläufe). Nach jedem Umlauf wechselt die Seite.
+const pP=V3(0,0,0),pF=V3(0,0,0),pN=V3(0,0,0);
+function pose(tt){
+  const lap=Math.floor(tt),t=tt-lap,f=t*U,i=Math.min(Math.floor(f),U-1),a=f-i;
+  pP.copy(C[i]).lerp(C[i+1],a);
+  pF.copy(T[i]).lerp(T[i+1],a).normalize();
+  pN.copy(Ns[i]).lerp(Ns[i+1],a).normalize().multiplyScalar(((lap%2)+2)%2?-1:1);
+}
+
+// Einfarbiger Neon-Streifen mit dezenterem Glow und geringem Abstand zum Band
+const MAXPT=12000;
+const trPos=new Float32Array(MAXPT*3);
+const trGeo=new THREE.BufferGeometry();
+trGeo.setAttribute("position",new THREE.BufferAttribute(trPos,3));
+trGeo.setDrawRange(0,0);
+
+// Textur für kontrollierten Neon-Glow
+const glowTex=(()=>{
+  const c=document.createElement("canvas");c.width=c.height=128;
+  const x=c.getContext("2d"),r=x.createRadialGradient(64,64,0,64,64,64);
+  r.addColorStop(0,"rgba(255,255,255,1)");
+  r.addColorStop(0.22,"rgba(150,250,255,0.85)");
+  r.addColorStop(0.5,"rgba(0,235,255,0.28)");
+  r.addColorStop(1,"rgba(0,200,255,0)");
+  x.fillStyle=r;x.fillRect(0,0,128,128);
+  return new THREE.CanvasTexture(c);
+})();
+
+// Äußerer Neon-Glow-Layer (doppelte Breite: 30)
+const glowMat=new THREE.PointsMaterial({
+  size:30,
+  sizeAttenuation:false,
+  map:glowTex,
+  color:0x2C8CBE,
+  transparent:true,
+  opacity:0.35,
+  blending:THREE.AdditiveBlending,
+  depthTest:true,
+  depthWrite:false
+});
+const trailGlow=new THREE.Points(trGeo,glowMat);
+trailGlow.frustumCulled=false;
+group.add(trailGlow);
+
+// Innerer scharfer Neon-Kern (doppelte Breite: 11)
+const coreMat=new THREE.PointsMaterial({
+  size:11,
+  sizeAttenuation:false,
+  map:glowTex,
+  color:0x006B99,
+  transparent:true,
+  opacity:0.9,
+  blending:THREE.AdditiveBlending,
+  depthTest:true,
+  depthWrite:false
+});
+const trailCore=new THREE.Points(trGeo,coreMat);
+trailCore.frustumCulled=false;
+group.add(trailCore);
+
+let trCount=0,trOn=true;
+function addPt(){
+  const k=trCount%MAXPT,o=k*3;
+  // Geringer Abstand (0.012) über der jeweiligen Band-Seite
+  trPos[o]=pP.x+pN.x*0.012;
+  trPos[o+1]=pP.y+pN.y*0.012;
+  trPos[o+2]=pP.z+pN.z*0.012;
+  trCount++;
+}
+function flushTrail(){
+  trGeo.setDrawRange(0,Math.min(trCount,MAXPT));
+  trGeo.attributes.position.needsUpdate=true;
+}
+
+// Sprung (tippen), Durchlaufen (halten) und Autoplay (Taste S)
+const DT=0.22/loopLen,DUR=0.34,RUNV=1.1/loopLen;
+let pos=0,jmp=null,queued=false,jumps=0,holding=false,autoplay=false,prevT=0,prevH=0;
+const hud=document.getElementById("hud");
+function updateHud(){
+  const lap=Math.floor(pos+1e-9);
+  hud.innerHTML="Sprünge: <b>"+jumps+"</b><br>Umläufe: <b>"+lap+"</b><br>Seite: <b>"+(lap%2?"B":"A")+"</b><br>Band abgedeckt: <b>"+Math.round(visitedCount/U*100)+" %</b>";
+}
+function jump(){if(jmp){queued=true;return;}jmp={from:pos,to:pos+DT,p:0};}
+const startHold=()=>{if(!holding){holding=true;jump();}};
+const endHold=()=>{holding=false;};
+function reset(){
+  pos=0;prevT=0;prevH=0;jmp=null;queued=false;jumps=0;autoplay=false;visited.fill(0);visitedCount=0;trCount=0;flushTrail();
+  first=true;updateHud();
+}
+// Weg zwischen zwei Zeitpunkten abtasten
+function sweep(t0,h0,t1,h1){
+  const dist=Math.abs(t1-t0)*loopLen;
+  if(dist<1e-6)return;
+  const n=Math.ceil(dist/0.01);
+  for(let s=1;s<=n;s++){
+    const a=s/n,ts=t0+(t1-t0)*a;
+    markVisited(ts);
+    if(trOn){pose(ts);addPt();}
+  }
+  if(trOn)flushTrail();
+}
+
+// Ansicht
+let outer=false,rx=0.35,ry=0,drag=false,lx=0,ly=0,first=true,last=performance.now();
+const camPos=V3(0,0,0),camUp=V3(0,0,1),want=V3(0,0,0),tgt=V3(0,0,0);
+const bView=document.getElementById("bView"),bTrail=document.getElementById("bTrail"),bJump=document.getElementById("bJump");
+bView.onclick=()=>{outer=!outer;bView.setAttribute("aria-pressed",outer);bView.textContent=outer?"Auf dem Band":"Außenansicht";first=true;};
+bTrail.onclick=()=>{trOn=!trOn;bTrail.setAttribute("aria-pressed",trOn);bTrail.textContent="Leuchtspur: "+(trOn?"an":"aus");trailGlow.visible=trOn;trailCore.visible=trOn;if(!trOn){trCount=0;flushTrail();}};
+document.getElementById("bReset").onclick=reset;
+bJump.addEventListener("pointerdown",e=>{e.preventDefault();autoplay=false;startHold();});
+["pointerup","pointerleave","pointercancel"].forEach(ev=>bJump.addEventListener(ev,endHold));
+document.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>b.blur()));
+addEventListener("keydown",e=>{
+  if(e.code==="Space"){e.preventDefault();autoplay=false;if(!e.repeat)startHold();}
+  else if(e.code==="KeyS"&&!e.repeat){autoplay=!autoplay;if(autoplay)holding=false;}
+});
+addEventListener("keyup",e=>{if(e.code==="Space")endHold();});
+addEventListener("blur",endHold);
+canvas.addEventListener("pointerdown",e=>{canvas.setPointerCapture(e.pointerId);if(outer){drag=true;lx=e.clientX;ly=e.clientY;}else{autoplay=false;startHold();}});
+canvas.addEventListener("pointermove",e=>{if(!drag)return;ry+=(e.clientX-lx)*0.01;rx+=(e.clientY-ly)*0.01;lx=e.clientX;ly=e.clientY;});
+canvas.addEventListener("pointerup",()=>{drag=false;endHold();});
+canvas.addEventListener("pointercancel",()=>{drag=false;endHold();});
+function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+addEventListener("resize",resize);resize();
+
+(function loop(){requestAnimationFrame(loop);
+  const now=performance.now(),dt=Math.min((now-last)/1000,0.1);last=now;
+  let tt=pos,hop=0;
+  if(jmp){
+    jmp.p=Math.min(1,jmp.p+dt/DUR);
+    const e=jmp.p*jmp.p*(3-2*jmp.p);
+    tt=jmp.from+(jmp.to-jmp.from)*e;hop=0.13*Math.sin(Math.PI*jmp.p);
+    if(jmp.p>=1){pos=jmp.to;tt=pos;hop=0;jumps++;jmp=null;if(queued){queued=false;jump();}}
+  }else if(holding||autoplay){pos+=RUNV*dt;tt=pos;}
+  sweep(prevT,prevH,tt,hop);prevT=tt;prevH=hop;
+  updateHud();
+  pose(tt);
+  if(outer){
+    group.rotation.set(rx,ry,0);
+    if(!drag)ry+=dt*0.24;
+    camera.up.set(0,1,0);camera.position.set(0,0,4.6);camera.lookAt(0,0,0);
+  }else{
+    group.rotation.set(0,0,0);
+    want.copy(pP).addScaledVector(pN,0.32+hop*0.5).addScaledVector(pF,-0.65);
+    tgt.copy(pP).addScaledVector(pF,0.35).addScaledVector(pN,0.03);
+    if(first){camPos.copy(want);camUp.copy(pN);first=false;}
+    const k=1-Math.exp(-dt*7);
+    camPos.lerp(want,k);camUp.lerp(pN,k).normalize();
+    camera.up.copy(camUp);camera.position.copy(camPos);camera.lookAt(tgt);
+  }
+  renderer.render(scene,camera);})();
+updateHud();
+</script>
+</body>
+</html>
