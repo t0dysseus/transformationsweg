@@ -14,8 +14,8 @@ body{background:#333333;color:var(--fg);font-family:system-ui,-apple-system,"Seg
 button{background:var(--btn);color:var(--fg);border:1px solid var(--bd);border-radius:999px;padding:8px 16px;font:inherit;font-size:14px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation}
 button[aria-pressed="true"]{border-color:#ffffff}
 #bJump{border-color:#ffffff;font-weight:600}
-#bTrail{position:fixed;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px))}
-@media (max-width:620px){#bTrail{bottom:calc(60px + env(safe-area-inset-bottom,0px))}}
+#opt{position:fixed;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+@media (max-width:620px){#opt{bottom:calc(60px + env(safe-area-inset-bottom,0px))}}
 .pop{position:fixed;left:0;top:0;display:none;opacity:0;transform:translate(-50%,calc(-100% - 6px));width:max-content;max-width:min(300px,80vw);box-sizing:border-box;padding:10px 12px;background:#fff;color:#000;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.45);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;text-align:left;z-index:5}
 .pop img,.pop iframe{display:block;width:100%;max-width:280px;border:0;border-radius:8px;margin:0 0 8px;background:#eee}
 .pop iframe{height:170px}
@@ -38,6 +38,9 @@ button[aria-pressed="true"]{border-color:#ffffff}
 #panel .x{padding:4px 10px}
 #panel .end{justify-content:flex-end;margin:4px 0 0}
 #bCreate{border-color:#ffffff;font-weight:600}
+#panel .end{flex-wrap:wrap}
+#msg{font-size:12px;opacity:.85;text-align:right;max-width:min(260px,60vw);text-shadow:0 0 4px #000}
+#msg:empty{display:none}
 </style>
 </head>
 <body>
@@ -53,8 +56,15 @@ button[aria-pressed="true"]{border-color:#ffffff}
   <div id="list"></div>
   <div class="row end"><button id="bCreate">Erstellen</button></div>
 </div>
-<button id="bTrail" aria-pressed="true">Leuchtspur: an</button>
+<div id="opt">
+  <div id="msg"></div>
+  <button id="bPdf">PDF exportieren</button>
+  <button id="bHtml">HTML exportieren</button>
+  <button id="bCrawl" aria-pressed="true">Texte am Band: an</button>
+  <button id="bTrail" aria-pressed="true">Leuchtspur: an</button>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 const canvas=document.getElementById("c");
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
@@ -102,6 +112,98 @@ const occBand=new THREE.Mesh(g,occMat);occBand.frustumCulled=false;group.add(occ
 const bandMat=new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:0.85});
 const band=new THREE.Mesh(g,bandMat);band.frustumCulled=false;group.add(band);
 let loopLen=0;for(let i=0;i<U;i++)loopLen+=C[i].distanceTo(C[i+1]);
+
+// Textblöcke fest auf dem Band: je Punkt ein Block mit Nummer, Bild und Text, quer zur Laufrichtung geschrieben
+// (Schrifthöhe zeigt nach vorn, Zeilen so breit wie das Band). Ein Block ist nur auf der Seite zu sehen, auf der er steht.
+const BWPX=300,PXU2=BWPX/(2*HW),FAM="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
+let blocks=[],blocksOn=true,rv=0,curRb=null;
+const blkGroup=new THREE.Group();group.add(blkGroup);
+const imgCache=new Map();
+function getImg(src){
+  if(imgCache.has(src)){const v=imgCache.get(src);return v&&v.naturalWidth?v:null;}
+  imgCache.set(src,null);
+  const im=new Image();if(!/^data:/.test(src))im.crossOrigin="anonymous";
+  im.onload=()=>{if(im.naturalWidth){imgCache.set(src,im);rebuildBlocks();}};
+  im.src=src;return null;
+}
+function wrapText(x,txt,maxW){
+  const out=[];
+  txt.split(/\n/).forEach(par=>{
+    let cur="";
+    par.split(/\s+/).filter(Boolean).forEach(w0=>{
+      let w=w0;
+      while(x.measureText(w).width>maxW){
+        let k=w.length-1;while(k>1&&x.measureText(w.slice(0,k)).width>maxW)k--;
+        if(cur){out.push(cur);cur="";}
+        out.push(w.slice(0,k));w=w.slice(k);
+      }
+      const t=cur?cur+" "+w:w;
+      if(x.measureText(t).width>maxW){out.push(cur);cur=w;}else cur=t;
+    });
+    out.push(cur);
+  });
+  return out;
+}
+function drawBlock(it,n,maxPx){
+  const FS=17,LH=22,PAD=12,maxW=BWPX-2*PAD,F="500 "+FS+"px "+FAM;
+  const m=document.createElement("canvas").getContext("2d");m.font=F;
+  const src=it.data||(/\.(jpe?g|png|gif|webp|avif|svg)([?#].*)?$/i.test(it.url||"")?it.url:"");
+  const im=src?getImg(src):null;
+  const txt=(it.text||"").trim()||((!im&&it.url)?it.url:"");
+  let lines=wrapText(m,txt||"(leer)",maxW);
+  const ih=im?Math.min(190,maxW*im.naturalHeight/im.naturalWidth):0,iw=im?ih*im.naturalWidth/im.naturalHeight:0;
+  const head=PAD+30,fixed=head+(im?ih+10:0)+PAD;
+  const maxLines=Math.max(1,Math.floor((maxPx-fixed)/LH));
+  if(lines.length>maxLines){lines=lines.slice(0,maxLines);lines[maxLines-1]=lines[maxLines-1].replace(/.{0,2}$/,"")+"…";}
+  const H=Math.min(Math.round(fixed+lines.length*LH),Math.max(maxPx,90));
+  const c=document.createElement("canvas");c.width=BWPX;c.height=H;const x=c.getContext("2d");
+  x.fillStyle="rgba(0,0,0,0.84)";x.fillRect(0,0,BWPX,H);
+  x.strokeStyle="#2C8CBE";x.lineWidth=3;x.strokeRect(1.5,1.5,BWPX-3,H-3);
+  x.textBaseline="top";x.font="700 22px "+FAM;x.fillStyle="#4cc9f0";x.fillText(String(n).padStart(2,"0"),PAD,PAD);
+  let y=head;
+  if(im){x.drawImage(im,PAD+(maxW-iw)/2,y,iw,ih);y+=ih+10;}
+  x.font=F;x.fillStyle="#e8fbff";lines.forEach(l=>{x.fillText(l,PAD,y);y+=LH;});
+  return c;
+}
+const tmpR=new THREE.Vector3();
+function rebuildBlocks(){
+  while(blkGroup.children.length){const o=blkGroup.children[0];blkGroup.remove(o);o.geometry.dispose();o.material.map.dispose();o.material.dispose();}
+  blocks=[];
+  const spacing=LAPS*loopLen/Math.max(1,count),maxPx=Math.floor(Math.min(0.92*spacing,1.8)*PXU2);
+  for(let m=0;m<count;m++){
+    const a=(m+0.5)*LAPS/count,cv=drawBlock(items[m],m+1,maxPx),len=cv.height/PXU2,lenTT=len/loopLen;
+    const nR=Math.max(2,Math.ceil(len/0.02)+1),pa=new Float32Array(nR*2*3),uv=new Float32Array(nR*2*2),ix=[];
+    for(let k=0;k<nR;k++){
+      const f=k/(nR-1);pose(a+f*lenTT);
+      tmpR.crossVectors(pF,pN);                                   // "rechts" von der Laufrichtung aus gesehen
+      for(let sd=0;sd<2;sd++){
+        const o=(k*2+sd)*3,sg=sd?1:-1;
+        pa[o]=pP.x+pN.x*0.0015+tmpR.x*HW*sg;pa[o+1]=pP.y+pN.y*0.0015+tmpR.y*HW*sg;pa[o+2]=pP.z+pN.z*0.0015+tmpR.z*HW*sg;
+        uv[(k*2+sd)*2]=sd;uv[(k*2+sd)*2+1]=f;
+      }
+      if(k<nR-1){const A0=k*2;ix.push(A0,A0+1,A0+3,A0,A0+3,A0+2);}
+    }
+    const gg=new THREE.BufferGeometry();
+    gg.setAttribute("position",new THREE.BufferAttribute(pa,3));gg.setAttribute("uv",new THREE.BufferAttribute(uv,2));gg.setIndex(ix);
+    const tex=new THREE.CanvasTexture(cv);tex.anisotropy=renderer.capabilities.getMaxAnisotropy();
+    const mesh=new THREE.Mesh(gg,new THREE.MeshBasicMaterial({map:tex,transparent:true,side:THREE.FrontSide,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
+    mesh.renderOrder=2;mesh.frustumCulled=false;blkGroup.add(mesh);
+    blocks.push({a,len,lenTT});
+  }
+  blkGroup.visible=blocksOn;
+  points.forEach(p=>{p.dot.visible=!blocksOn;});
+}
+function readBlock(tt){
+  if(!blocksOn||!blocks.length)return null;
+  const f=((tt%LAPS)+LAPS)%LAPS;
+  for(const b of blocks){if((f>=b.a-0.003&&f<=b.a+b.lenTT)||(f+LAPS>=b.a-0.003&&f+LAPS<=b.a+b.lenTT))return b;}
+  return null;
+}
+document.getElementById("bCrawl").onclick=()=>{
+  blocksOn=!blocksOn;const b=document.getElementById("bCrawl");
+  b.setAttribute("aria-pressed",blocksOn);b.textContent="Texte am Band: "+(blocksOn?"an":"aus");
+  blkGroup.visible=blocksOn;points.forEach(p=>{p.dot.visible=!blocksOn;});
+};
 
 // Fortschritt zählen (ohne das Raster einzufärben)
 const visited=new Uint8Array(U);let visitedCount=0;
@@ -188,7 +290,17 @@ function flushTrail(){
 const DT=0.22/loopLen,DUR=0.34,RUNV=1.1/loopLen;
 let panelOpen=true;
 let pos=0,jmp=null,queued=false,jumps=0,holding=false,autoplay=false,prevT=0,prevH=0;
-function jump(){if(jmp){queued=true;return;}jmp={from:pos,to:pos+DT,p:0};}
+function nextTarget(){
+  if(!blocksOn||!blocks.length)return pos+DT;
+  const base=Math.floor(pos/LAPS)*LAPS;let best=Infinity;
+  for(let k=-1;k<=2;k++)blocks.forEach(b=>{const t=b.a+base+k*LAPS;if(t>pos+1e-4&&t<best)best=t;});
+  return best;
+}
+function jump(){
+  if(jmp){queued=true;return;}
+  const to=nextTarget(),dist=(to-pos)*loopLen;
+  jmp={from:pos,to,p:0,dur:Math.max(DUR,Math.min(1.1,0.28*dist)),h:Math.min(0.3,0.1+0.05*dist)};
+}
 const startHold=()=>{if(!holding){holding=true;jump();}};
 const endHold=()=>{holding=false;};
 function reset(){
@@ -238,11 +350,11 @@ const MINP=4,MAXP=12,LAPS=2,CORD=0.4;
 const items=Array.from({length:MAXP},()=>({text:"",url:"",data:"",name:""}));
 let count=6,points=[];
 try{
-  const s=JSON.parse(localStorage.getItem("moebius-gen")||"null");
-  if(s){count=Math.min(MAXP,Math.max(MINP,(s.count|0)||6));(s.items||[]).slice(0,MAXP).forEach((it,i)=>{items[i].text=String(it.text||"");items[i].url=String(it.url||"");});}
+  const s=window.PRESET||JSON.parse(localStorage.getItem("moebius-gen")||"null");
+  if(s){count=Math.min(MAXP,Math.max(MINP,(s.count|0)||6));(s.items||[]).slice(0,MAXP).forEach((it,i)=>{items[i].text=String(it.text||"");items[i].url=String(it.url||"");items[i].data=String(it.data||"");items[i].name=String(it.name||"");});}
 }catch(e){}
 const panel=document.getElementById("panel"),list=document.getElementById("list"),cnt=document.getElementById("cnt"),cntv=document.getElementById("cntv");
-function saveCfg(){try{localStorage.setItem("moebius-gen",JSON.stringify({count,items:items.map(i=>({text:i.text,url:i.url}))}));}catch(e){}}
+function saveCfg(){if(window.PRESET)return;try{localStorage.setItem("moebius-gen",JSON.stringify({count,items:items.map(i=>({text:i.text,url:i.url}))}));}catch(e){}}
 function renderList(){
   list.innerHTML="";
   for(let i=0;i<count;i++){
@@ -291,9 +403,114 @@ function build(){
     document.body.appendChild(el);
     points.push({tt:ttm,base,N,line,dot,el,s:0,shown:false,loaded:false,item:{text:it.text,url:it.url,data:it.data},empty:!(it.text||it.url||it.data)});
   }
-  saveCfg();
+  saveCfg();rebuildBlocks();
 }
 document.getElementById("bCreate").onclick=()=>{build();reset();setPanel(false);};
+
+// ===== Export: HTML (alles fest eingebaut) und PDF =====
+const msg=document.getElementById("msg"),setMsg=t=>{msg.textContent=t;};
+async function saveFile(name,data){
+  let dl=null;
+  try{dl=(window.claude&&claude.use)?await claude.use("downloads"):null;}catch(e){}
+  if(dl){
+    try{await dl.save({filename:name,data});setMsg("Gespeichert: "+name);}
+    catch(e){setMsg(e&&e.code==="declined"?"Abgebrochen.":"Speichern nicht möglich.");}
+    return;
+  }
+  const b=data instanceof Blob?data:new Blob([data],{type:"text/html"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  setMsg("Datei erstellt: "+name);
+}
+function snapshotCfg(){return {count,items:items.slice(0,count).map(i=>({text:i.text,url:i.url,data:i.data,name:i.name}))};}
+function buildHtml(){
+  const cl=document.documentElement.cloneNode(true);
+  cl.querySelectorAll(".pop").forEach(e=>e.remove());
+  const lst=cl.querySelector("#list");if(lst)lst.innerHTML="";
+  const pn=cl.querySelector("#panel");if(pn)pn.classList.remove("open");
+  const bv=cl.querySelector("#bView");bv.setAttribute("aria-pressed","false");bv.textContent="Außenansicht";
+  const bt=cl.querySelector("#bTrail");bt.setAttribute("aria-pressed","true");bt.textContent="Leuchtspur: an";
+  const bc=cl.querySelector("#bCrawl");bc.setAttribute("aria-pressed","true");bc.textContent="Texte am Band: an";
+  const ms=cl.querySelector("#msg");if(ms)ms.textContent="";
+  const pre=document.createElement("script");
+  pre.textContent="window.PRESET="+JSON.stringify(snapshotCfg()).replace(/</g,"\\u003c")+";";
+  cl.querySelectorAll("script:not([src])").forEach(sc=>{if(sc.textContent.trim().startsWith("window.PRESET="))sc.remove();});
+  const main=cl.querySelector("script:not([src])");
+  main.parentNode.insertBefore(pre,main);
+  return "<!DOCTYPE html>\n"+cl.outerHTML;
+}
+function snapshot(){
+  const w=canvas.width,h=canvas.height,cam=new THREE.PerspectiveCamera(45,w/h,0.02,100);
+  cam.position.set(0,-1.2,4.6);cam.up.set(0,1,0);cam.lookAt(0,0,0);
+  const rot=group.rotation.clone();
+  group.rotation.set(0.35,0,0);group.updateMatrixWorld(true);
+  renderer.render(scene,cam);
+  const url=canvas.toDataURL("image/jpeg",0.92);
+  group.rotation.copy(rot);group.updateMatrixWorld(true);
+  return {url,w,h};
+}
+const safe=t=>String(t).replace(/[„“”«»]/g,'"').replace(/[‚‘’]/g,"'").replace(/[–—]/g,"-").replace(/…/g,"...").replace(/[^\x09\x0a\x0d\x20-\x7e\xa0-\xff]/g,"?");
+const loadImg=(src,cors)=>new Promise(res=>{const im=new Image();if(cors)im.crossOrigin="anonymous";im.onload=()=>res(im);im.onerror=()=>res(null);im.src=src;});
+function imgToJpeg(im){
+  const sc=Math.min(1,1600/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement("canvas");
+  c.width=Math.max(1,Math.round(im.naturalWidth*sc));c.height=Math.max(1,Math.round(im.naturalHeight*sc));
+  const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
+  return {url:c.toDataURL("image/jpeg",0.88),w:c.width,h:c.height};
+}
+async function exportPdf(){
+  if(!(window.jspdf&&window.jspdf.jsPDF)){setMsg("PDF-Bibliothek nicht geladen (Internetverbindung?).");return;}
+  setMsg("PDF wird erstellt …");
+  build();
+  const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"}),PW=210,PH=297,M=16,CW=PW-2*M,LH=5.2;
+  let y=M;
+  const ensure=h=>{if(y+h>PH-M){doc.addPage();y=M;}};
+  doc.setFont("helvetica","bold");doc.setFontSize(18);doc.text("Möbiusschleife: Inhalte",M,y+6);y+=12;
+  doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(110);
+  doc.text(safe(count+" Punkte auf dem Band, zwei Umläufe = beide Seiten"),M,y);y+=8;doc.setTextColor(0);
+  try{
+    const sh=snapshot(),ih=Math.min(110,CW*sh.h/sh.w),iw=ih*sh.w/sh.h;
+    doc.addImage(sh.url,"JPEG",M+(CW-iw)/2,y,iw,ih);y+=ih+8;
+  }catch(e){}
+  for(let m=0;m<count;m++){
+    const it=items[m],ttm=(m+0.5)*LAPS/count,lap=Math.floor(ttm),pct=Math.round((ttm-lap)*100);
+    ensure(24);
+    doc.setDrawColor(190);doc.line(M,y,PW-M,y);y+=6;
+    doc.setFont("helvetica","bold");doc.setFontSize(12);doc.text("Punkt "+(m+1),M,y);
+    doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(110);
+    doc.text("Umlauf "+(lap+1)+", Seite "+(lap%2?"B":"A")+", "+pct+" % der Strecke",PW-M,y,{align:"right"});
+    doc.setTextColor(0);y+=6;
+    doc.setFontSize(11);
+    if(it.text){doc.splitTextToSize(safe(it.text),CW).forEach(l=>{ensure(LH);doc.text(l,M,y);y+=LH;});y+=2;}
+    let im=null,src=it.data||(it.url&&/\.(jpe?g|png|gif|webp|avif|svg)([?#].*)?$/i.test(it.url)?it.url:"");
+    if(src){im=await loadImg(src,!it.data);if(im&&!im.naturalWidth)im=null;}
+    if(im){
+      try{
+        const j=imgToJpeg(im),mh=80,mw=CW,sc=Math.min(mw/j.w,mh/j.h),w=j.w*sc,h=j.h*sc;
+        ensure(h+4);doc.addImage(j.url,"JPEG",M,y,w,h);y+=h+4;
+      }catch(e){im=null;}
+    }
+    if(!im&&it.url){
+      doc.setTextColor(0,70,160);doc.splitTextToSize(safe((src?"Bild: ":"Link: ")+it.url),CW).forEach(l=>{ensure(LH);doc.text(l,M,y);y+=LH;});
+      doc.setTextColor(0);
+    }
+    if(!(it.text||it.url||it.data)){doc.setTextColor(140);ensure(LH);doc.text("(leer)",M,y);y+=LH;doc.setTextColor(0);}
+    y+=4;
+  }
+  const n=doc.getNumberOfPages();
+  for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(9);doc.setTextColor(130);doc.text("Seite "+i+" / "+n,PW/2,PH-8,{align:"center"});}
+  await saveFile("moebiusband-inhalte.pdf",doc.output("blob"));
+}
+document.getElementById("bHtml").onclick=async()=>{
+  setMsg("HTML wird erstellt …");
+  try{await saveFile("moebiusband.html",buildHtml());}catch(e){console.error(e);setMsg("HTML konnte nicht erstellt werden.");}
+};
+document.getElementById("bPdf").onclick=async()=>{
+  const b=document.getElementById("bPdf");b.disabled=true;
+  try{await exportPdf();}catch(e){console.error(e);setMsg("PDF konnte nicht erstellt werden.");}
+  b.disabled=false;
+};
+// Exportierte Datei: Inhalte fest eingebaut, direkt als Betrachter starten
+if(window.PRESET){build();reset();setPanel(false);document.getElementById("bEdit").style.display="none";}
 
 const tmpW=V3(0,0,0),tmpV=V3(0,0,0);
 function updatePops(tt,dt){
@@ -302,7 +519,7 @@ function updatePops(tt,dt){
   const k=1-Math.exp(-dt*8),W=innerWidth,H=innerHeight;
   points.forEach(p=>{
     let d=p.tt-tt;d-=LAPS*Math.round(d/LAPS);
-    const dist=d*loopLen,on=!p.empty&&!panelOpen&&dist>-B&&dist<R;
+    const dist=d*loopLen,on=!blocksOn&&!p.empty&&!panelOpen&&dist>-B&&dist<R;
     p.s+=((on?1:0)-p.s)*k;
     if(!on&&p.s<0.01){p.s=0;if(p.shown){p.shown=false;p.line.visible=false;p.el.style.display="none";}return;}
     if(!p.loaded)loadMedia(p);
@@ -323,9 +540,9 @@ function updatePops(tt,dt){
   const now=performance.now(),dt=Math.min((now-last)/1000,0.1);last=now;
   let tt=pos,hop=0;
   if(jmp){
-    jmp.p=Math.min(1,jmp.p+dt/DUR);
+    jmp.p=Math.min(1,jmp.p+dt/jmp.dur);
     const e=jmp.p*jmp.p*(3-2*jmp.p);
-    tt=jmp.from+(jmp.to-jmp.from)*e;hop=0.13*Math.sin(Math.PI*jmp.p);
+    tt=jmp.from+(jmp.to-jmp.from)*e;hop=jmp.h*Math.sin(Math.PI*jmp.p);
     if(jmp.p>=1){pos=jmp.to;tt=pos;hop=0;jumps++;jmp=null;if(queued){queued=false;jump();}}
   }else if(holding||autoplay){pos+=RUNV*dt;tt=pos;}
   sweep(prevT,prevH,tt,hop);prevT=tt;prevH=hop;
@@ -336,8 +553,12 @@ function updatePops(tt,dt){
     camera.up.set(0,1,0);camera.position.set(0,0,4.6);camera.lookAt(0,0,0);
   }else{
     group.rotation.set(0,0,0);
-    want.copy(pP).addScaledVector(pN,0.32+hop*0.5).addScaledVector(pF,-0.65);
-    tgt.copy(pP).addScaledVector(pF,0.35).addScaledVector(pN,0.03);
+    const rb=(!jmp&&!holding&&!autoplay)?readBlock(tt):null;
+    if(rb)curRb=rb;
+    rv+=((rb?1:0)-rv)*(1-Math.exp(-dt*4));
+    const LB=curRb?Math.min(curRb.len,1.2):0.4;
+    want.copy(pP).addScaledVector(pN,(0.32+hop*0.5)*(1-rv)+(0.3+0.3*LB)*rv).addScaledVector(pF,-0.65*(1-rv)-0.12*rv);
+    tgt.copy(pP).addScaledVector(pF,0.35*(1-rv)+0.5*LB*rv).addScaledVector(pN,0.03*(1-rv));
     if(first){camPos.copy(want);camUp.copy(pN);first=false;}
     const k=1-Math.exp(-dt*7);
     camPos.lerp(want,k);camUp.lerp(pN,k).normalize();
