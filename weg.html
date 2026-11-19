@@ -151,7 +151,7 @@ canvas.addEventListener('pointerup',function(e){
   var d=Math.hypot(e.clientX-down.x,e.clientY-down.y);down=null;
   if(d>6)return;
   var i=hit(e);
-  if(i>=0){tags[i].on=!tags[i].on;tags[i].ln.visible=tags[i].on;}
+  if(i>=0){tags[i].on=!tags[i].on;tags[i].ln.visible=tags[i].on;force=null;}
 });
 canvas.addEventListener('pointermove',function(e){
   if(e.buttons)return;
@@ -197,11 +197,46 @@ canvas.addEventListener('wheel',function(e){
   dist=Math.min(Math.max(dist*Math.exp(e.deltaY*0.001),2),70);
 },{passive:false});
 
-var lastT=performance.now();
+/* Bewegung: Drehung um die Längsachse und Drehteller um sich selbst. R schaltet alles an/aus (auch bei offener Beschriftung).
+   S richtet den Cone so aus, dass die blaue Seite zur Kamera zeigt, und fährt geradeaus in den Cone zum Mittelpunkt; nochmal S = zurück. */
+var force=null,anim=null,focused=false,home={theta:0.45,phi:1.25,dist:26},lastT=performance.now();
+function isMoving(){return force!==null?force:!tags.some(function(t){return t.on;});}
+function ang(a,b){var d=(b-a)%(2*Math.PI);if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;return d;}
+function flyTo(segs){anim={segs:segs,i:0};}
+function toggleFocus(){
+  if(focused){
+    focused=false;force=null;
+    flyTo([{to:{dist:home.dist},dur:1.8},{to:{theta:home.theta,phi:home.phi,ry:0},dur:2.2}]);
+  }else{
+    focused=true;force=false;
+    flyTo([{to:{theta:0,phi:Math.PI/2,ry:Math.PI/2,my:Math.PI},dur:2.4},{to:{dist:3},dur:2.2}]);
+  }
+}
+window.addEventListener('keydown',function(e){
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  var k=e.key.toLowerCase();
+  if(k==='r'){var m=isMoving();force=!m;if(!m){focused=false;anim=null;}}
+  else if(k==='s'){toggleFocus();}
+});
+canvas.addEventListener('pointerdown',function(){anim=null;});
+canvas.addEventListener('wheel',function(){anim=null;},{passive:true});
 (function loop(){
   var now=performance.now(),dt=Math.min((now-lastT)/1000,0.1);lastT=now;
-  var open=tags.some(function(t){return t.on;});
-  if(!open&&Object.keys(ptrs).length===0)model.rotation.y+=dt*0.3;
+  if(anim){
+    var sg=anim.segs[anim.i];
+    if(!sg.from)sg.from={theta:theta,phi:phi,dist:dist,ry:rig.rotation.y,my:model.rotation.y};
+    sg.t=(sg.t||0)+dt/sg.dur;
+    var k=Math.min(1,sg.t),e=k*k*(3-2*k),f=sg.from,o=sg.to;
+    if(o.theta!==undefined)theta=f.theta+ang(f.theta,o.theta)*e;
+    if(o.phi!==undefined)phi=f.phi+(o.phi-f.phi)*e;
+    if(o.dist!==undefined)dist=f.dist*Math.pow(o.dist/f.dist,e);
+    if(o.ry!==undefined)rig.rotation.y=f.ry+ang(f.ry,o.ry)*e;
+    if(o.my!==undefined)model.rotation.y=f.my+ang(f.my,o.my)*e;
+    if(k>=1){anim.i++;if(anim.i>=anim.segs.length)anim=null;}
+  }else if(isMoving()&&Object.keys(ptrs).length===0){
+    model.rotation.y+=dt*0.3;
+    rig.rotation.y+=dt*0.14;
+  }
   place();renderer.render(scene,camera);updateTags();requestAnimationFrame(loop);
 })();
 })();
