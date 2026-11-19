@@ -34,39 +34,42 @@ details summary{cursor:pointer;font-size:13px;color:var(--mut)}
 .stage{position:sticky;top:12px;align-self:start}
 #cv{display:block;width:100%;max-width:560px;margin:0 auto;border-radius:6px;box-shadow:0 4px 24px rgba(0,0,0,.25);touch-action:none;cursor:grab;background:#fff}
 #msg{font-size:13px;color:var(--mut);min-height:1.4em;text-align:center;margin-top:8px}
+details.adv>summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--fg)}
+.adv h2{margin-top:18px}.adv[open]>summary{margin-bottom:4px}
+.big{width:100%;padding:12px;font-size:16px;border-radius:12px}
+#texts label.l:first-child{margin-top:12px}
 </style>
 </head>
 <body>
 <div class="app">
   <div>
-    <div class="card"><h1>Kompetenznachweis-Generator</h1><div class="hint">Inhalte eintragen, Elemente in der Vorschau verschieben, PDF erstellen und ausdrucken.</div></div>
-    <div class="card"><h2>Element</h2><div class="chips" id="chips"></div><div id="fields"></div></div>
-    <div class="card"><h2>Gestaltung</h2>
-      <div class="row"><label style="font-size:12px;color:var(--mut)">Titel / Name <select id="fT"><option value="Arial">Helvetica / Arial</option><option value="IBM Plex Sans">IBM Plex Sans</option><option value="Atkinson Hyperlegible">Atkinson Hyperlegible</option><option value="Archivo Black">Archivo Black</option></select></label>
-      <label style="font-size:12px;color:var(--mut)">Text <select id="fB"><option value="Arial">Helvetica / Arial</option><option value="IBM Plex Sans">IBM Plex Sans</option><option value="Atkinson Hyperlegible">Atkinson Hyperlegible</option></select></label></div>
-      <details style="margin-top:8px"><summary>Farben</summary><div class="cols" id="cols" style="margin-top:8px"></div></details>
-    </div>
-    <div class="card"><h2>PDF</h2>
-      <div class="row"><label style="font-size:12px;color:var(--mut)">Format <select id="fmt"><option value="a5">A5</option><option value="a4" selected>A4</option><option value="a3">A3</option></select></label></div>
-      <div class="row"><button class="pri" id="bPdf">PDF erstellen</button><button id="bPng">PNG speichern</button><button id="bReset">Zurücksetzen</button></div>
-    </div>
+    <div class="card"><h1>Kompetenznachweis-Generator</h1><div id="texts"></div><div class="row"><button class="pri big" id="bPdf">PDF erstellen</button></div><div id="msg"></div></div>
+    <details class="card adv"><summary>Erweiterte Möglichkeiten</summary>
+      <h2>Verschieben und Größe</h2><div class="chips" id="chips"></div><div id="fields"></div>
+      <h2>Schrift</h2><div class="row"><label style="font-size:12px;color:var(--mut)">Titel <select id="fT"><option value="Atkinson Hyperlegible">Atkinson Hyperlegible</option><option value="Arial">Helvetica / Arial</option><option value="IBM Plex Sans">IBM Plex Sans</option><option value="Archivo Black">Archivo Black</option></select></label>
+      <label style="font-size:12px;color:var(--mut)">Text <select id="fB"><option value="Atkinson Hyperlegible">Atkinson Hyperlegible</option><option value="Arial">Helvetica / Arial</option><option value="IBM Plex Sans">IBM Plex Sans</option></select></label></div>
+      <h2>Farben</h2><div class="cols" id="cols"></div>
+      <h2>Ausgabe</h2><div class="row"><label style="font-size:12px;color:var(--mut)">Format <select id="fmt"><option value="a5">A5</option><option value="a4" selected>A4</option><option value="a3">A3</option></select></label></div>
+      <div class="row"><button id="bPng">PNG speichern</button><button id="bReset">Zurücksetzen</button></div>
+    </details>
   </div>
-  <div class="stage"><canvas id="cv"></canvas><div id="msg"></div></div>
+  <div class="stage"><canvas id="cv"></canvas></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 const $=s=>document.querySelector(s);
+const adv=document.querySelector('details.adv');
 //#CORE-START
 // ---- Kern: Layout nach Designvorlage (weißes Plakat, Drahtgitter-Bänder, hellblaue Fußleiste) ----
 const TH={bg:'#ffffff',title:'#000000',text:'#000000',ribA:'#000000',ribB:'#000000',ribC:'#1f9bea',band:'#d6eefc',logo:'#8fa3b5',logoTx:'#000000',foot:'#2a2a2a',line:'#000000'};
 const CL={bg:'Hintergrund',title:'Titel',text:'Text',ribA:'Band 1 (Netz)',ribB:'Band 2 (Netz)',ribC:'Band 3 (Netz)',band:'Fußleiste',logo:'Logo Netz',logoTx:'Logo Text',foot:'Fußzeile',line:'Unterschriftslinie'};
-const DEF=()=>({fT:'Arial',fB:'Arial',fmt:'a4',sel:'title',
+const DEF=()=>({fT:'Atkinson Hyperlegible',fB:'Atkinson Hyperlegible',fmt:'a4',sel:'title',
  tx:{title:'Kompetenz-\nnachweis',sub:'CJD Hackathon',name:'Max\nMustermann',date:'1., 5. und 9.12.2026',event:'CJD Hackathon',thema:'Thema des Hackathons',focus:'Konzeption\nTeamarbeit\nKommunikation\nPräsentation',free:'',signName:'Vorname Nachname',signRole:'',logo:'Räume\nfür Jeden',foot:'In Zusammenarbeit mit dem Masterstudiengang Transformation Design & Print der BHT'},
  pos:{title:{x:55.7,y:6.3,s:1},sub:{x:55.7,y:18.2,s:1},name:{x:3.3,y:65,s:1},body:{x:55.7,y:64.5,s:1},sign:{x:55.7,y:83,s:1},logo:{x:7.7,y:92.8,s:1},foot:{x:1.2,y:99.3,s:1},ribA:{x:0,y:0,s:1},ribB:{x:0,y:0,s:1},ribC:{x:0,y:0,s:1}},
  th:Object.assign({},TH)});
 let S=DEF();
-try{const j=JSON.parse(localStorage.getItem('kompetenz-gen2')||'null');if(j){for(const k of['tx','pos','th'])for(const a in j[k]||{})S[k][a]=(typeof j[k][a]==='object')?Object.assign(S[k][a]||{},j[k][a]):j[k][a];for(const k of['fT','fB','fmt'])if(j[k]!==undefined)S[k]=j[k]}}catch(e){}
-const save=()=>{try{const{sel,...r}=S;localStorage.setItem('kompetenz-gen2',JSON.stringify(r))}catch(e){}};
+try{const o3=localStorage.getItem('kompetenz-gen3'),j=JSON.parse(o3||localStorage.getItem('kompetenz-gen2')||'null');if(j&&!o3){delete j.fT;delete j.fB}if(j){for(const k of['tx','pos','th'])for(const a in j[k]||{})S[k][a]=(typeof j[k][a]==='object')?Object.assign(S[k][a]||{},j[k][a]):j[k][a];for(const k of['fT','fB','fmt'])if(j[k]!==undefined)S[k]=j[k]}}catch(e){}
+const save=()=>{try{const{sel,...r}=S;localStorage.setItem('kompetenz-gen3',JSON.stringify(r))}catch(e){}};
 const FONTS={'Arial':{css:'"Helvetica Neue",Helvetica,Arial,sans-serif',ls:-.01},'IBM Plex Sans':{css:'"IBM Plex Sans",Arial,Helvetica,sans-serif',ls:-.012},'Atkinson Hyperlegible':{css:'"Atkinson Hyperlegible",Arial,Helvetica,sans-serif',ls:-.01},'Archivo Black':{css:'"Archivo Black","Arial Black",Impact,sans-serif',ls:-.02}};
 const FD=f=>FONTS[f]||FONTS.Arial;
 const F2=(f,px,w)=>(f==='Archivo Black'?400:w)+' '+px+'px '+FD(f).css;
@@ -214,7 +217,7 @@ function draw(c,W,H,sel,low){
 const cv=$('#cv');let boxes={},lowT=null;
 function render(low){
  const r=Math.min(window.devicePixelRatio||1,2),w=cv.clientWidth||560;cv.width=Math.round(w*r);cv.height=Math.round(w*r*1.41421);
- boxes=draw(cv.getContext('2d'),cv.width,cv.height,S.sel,!!low);save();
+ boxes=draw(cv.getContext('2d'),cv.width,cv.height,adv.open?S.sel:null,!!low);save();
 }
 // Während des Ziehens grob zeichnen, danach in voller Dichte
 function fast(){render(true);clearTimeout(lowT);lowT=setTimeout(()=>render(false),160)}
@@ -231,8 +234,7 @@ const ELS=[
 function panel(){
  $('#chips').innerHTML='';ELS.forEach(([k,n])=>{const b=document.createElement('button');b.textContent=n;b.className=S.sel===k?'on':'';b.onclick=()=>{S.sel=k;panel();render()};$('#chips').append(b)});
  const el=ELS.find(e=>e[0]===S.sel),box=$('#fields');box.innerHTML='';
- el[2].forEach(([k,l,rows])=>{const lb=document.createElement('label');lb.className='l';lb.textContent=l;const t=rows>1?document.createElement('textarea'):document.createElement('input');if(rows>1)t.rows=rows;else t.type='text';t.value=S.tx[k];t.oninput=()=>{S.tx[k]=t.value;render()};box.append(lb,t)});
- const rib=S.sel.slice(0,3)==='rib',p=S.pos[S.sel];
+  const rib=S.sel.slice(0,3)==='rib',p=S.pos[S.sel];
  [['x',rib?'Verschieben ↔':'Waagerecht',rib?-60:0,rib?60:100,.1],['y',rib?'Verschieben ↕':'Senkrecht',rib?-60:0,rib?60:100,.1],['s','Größe',rib?.4:.3,rib?1.8:2.5,.01]].forEach(([k,l,mn,mx,st])=>{
   const d=document.createElement('div');d.className='sl';d.innerHTML='<span>'+l+'</span><input type="range" min="'+mn+'" max="'+mx+'" step="'+st+'"><output></output>';
   const i=d.querySelector('input'),o=d.querySelector('output');i.value=p[k];o.textContent=(+p[k]).toFixed(k==='s'?2:1);i.oninput=()=>{p[k]=+i.value;o.textContent=(+i.value).toFixed(k==='s'?2:1);fast()};box.append(d)});
@@ -240,18 +242,21 @@ function panel(){
  h.textContent=rib?'Drahtgitter-Band: lässt sich auch direkt in der Vorschau ziehen. Die Farbe stellst du unter „Gestaltung“ ein.':S.sel==='sign'?'Über der Linie bleibt Platz zum Unterschreiben. Du kannst das Element auch direkt in der Vorschau anklicken und ziehen.':'Du kannst das Element auch direkt in der Vorschau anklicken und ziehen.';
  box.append(h);
 }
+const TXT=[['title','Titel',2],['sub','Untertitel',1],['name','Name',2],['date','Datum oder Zeitraum',1],['event','Veranstaltung',1],['thema','Thema',1],['focus','Schwerpunkte (einer pro Zeile)',4],['free','Eigener Text (optional)',3,'Ersetzt den automatischen Satz. Mit *Sternchen* wird ein Wort fett.'],['signName','Name für die Unterschrift',1],['signRole','Funktion (optional)',1],['logo','Logo-Text',2],['foot','Fußzeile',2]];
+const SELK={date:'body',event:'body',thema:'body',focus:'body',free:'body',signName:'sign',signRole:'sign'};
+function buildTexts(){const box=$('#texts');box.innerHTML='';TXT.forEach(([k,l,rows,h])=>{const lb=document.createElement('label');lb.className='l';lb.textContent=l;const t=rows>1?document.createElement('textarea'):document.createElement('input');if(rows>1)t.rows=rows;else t.type='text';t.value=S.tx[k];t.oninput=()=>{S.tx[k]=t.value;render()};t.onfocus=()=>{S.sel=SELK[k]||k;if(adv.open)panel();render()};box.append(lb,t);if(h){const d=document.createElement('div');d.className='hint';d.textContent=h;box.append(d)}})}
 function ctl(){
  $('#cols').innerHTML='';for(const k in CL){const l=document.createElement('label');l.append(CL[k]);const i=document.createElement('input');i.type='color';i.value=S.th[k];i.oninput=()=>{S.th[k]=i.value;fast()};l.append(i);$('#cols').append(l)}
  $('#fT').value=S.fT;$('#fB').value=S.fB;$('#fmt').value=S.fmt;
 }
 $('#fT').onchange=e=>{S.fT=e.target.value;render()};$('#fB').onchange=e=>{S.fB=e.target.value;render()};
 $('#fmt').onchange=e=>{S.fmt=e.target.value;save()};
-$('#bReset').onclick=()=>{if(!confirm('Alle Eingaben und Positionen zurücksetzen?'))return;S=DEF();ctl();panel();render()};
+$('#bReset').onclick=()=>{if(!confirm('Alle Eingaben und Positionen zurücksetzen?'))return;S=DEF();buildTexts();ctl();panel();render()};
 
 // Ziehen in der Vorschau (Text: Position, Bänder: Verschiebung)
 let drag=null;
 const pt=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]};
-cv.addEventListener('pointerdown',e=>{const[fx,fy]=pt(e),px=fx*cv.width,py=fy*cv.height,order=['foot','logo','sign','body','name','sub','title','ribC','ribB','ribA'];
+cv.addEventListener('pointerdown',e=>{if(!adv.open)return;const[fx,fy]=pt(e),px=fx*cv.width,py=fy*cv.height,order=['foot','logo','sign','body','name','sub','title','ribC','ribB','ribA'];
  const k=order.find(k=>boxes[k]&&px>=boxes[k][0]&&px<=boxes[k][2]&&py>=boxes[k][1]&&py<=boxes[k][3]);
  if(!k)return;cv.setPointerCapture(e.pointerId);S.sel=k;const p=S.pos[k];
  drag={k,rib:k.slice(0,3)==='rib',fx,fy,x0:p.x,y0:p.y};panel();render()});
@@ -281,7 +286,7 @@ $('#bPdf').onclick=async()=>{
 $('#bPng').onclick=async()=>{await fonts();page().toBlob(bl=>saveFile(fileBase()+'.png',bl),'image/png')};
 
 addEventListener('resize',()=>render());
-ctl();panel();render();
+buildTexts();ctl();panel();render();cv.style.cursor='default';adv.addEventListener('toggle',()=>{cv.style.cursor=adv.open?'grab':'default';panel();render()});
 (document.fonts&&Promise.all([document.fonts.load('400 40px "Atkinson Hyperlegible"'),document.fonts.load('700 40px "IBM Plex Sans"')]).then(()=>render()).catch(()=>{}));
 </script>
 </body>
