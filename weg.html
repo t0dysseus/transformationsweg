@@ -105,16 +105,31 @@ tagCfg.forEach(function(c,ti){
   tags.push({el:el,ln:ln,end:end,on:false});
 });
 model.add(new T.Line(new T.BufferGeometry().setFromPoints(chain),lineMat));
-/* die drei grauen Würfel, die den blauen am nächsten liegen, werden ebenfalls blau, anklickbar, mit eigenem Inhalt */
-function mkTag(m,end,date,head){
-  var ln=new T.Line(new T.BufferGeometry().setFromPoints([m.position.clone(),end]),lineMat);
-  ln.visible=false;model.add(ln);
-  var el=document.createElement('div');el.className='tag left';
-  var dd=document.createElement('span');dd.className='d';dd.textContent=date;
-  var hh=document.createElement('span');hh.className='h';hh.textContent=head;
-  el.appendChild(dd);el.appendChild(hh);document.body.appendChild(el);
-  tags.push({el:el,ln:ln,end:end,on:false});
+/* Individuelle Termine und Texte für die drei blauen Hack-Würfel */
+var hackTermine = [
+  { date: '02.12.', head: 'Hack 1 · Thema 1' },
+  { date: '04.12.', head: 'Hack 2 · Thema 2' },
+  { date: '11.12.', head: 'Hack 3 · Thema 3' }
+];
+
+function mkTag(m, end, date, head) {
+  var ln = new T.Line(new T.BufferGeometry().setFromPoints([m.position.clone(), end]), lineMat);
+  ln.visible = false;
+  model.add(ln);
+  var el = document.createElement('div');
+  el.className = 'tag left';
+  var dd = document.createElement('span');
+  dd.className = 'd';
+  dd.textContent = date;
+  var hh = document.createElement('span');
+  hh.className = 'h';
+  hh.textContent = head;
+  el.appendChild(dd);
+  el.appendChild(hh);
+  document.body.appendChild(el);
+  tags.push({ el: el, ln: ln, end: end, on: false });
 }
+
 grays.map(function(g){var d=Math.min.apply(null,picks.map(function(p){return g.position.distanceTo(p.position);}));return {g:g,d:d};})
   .sort(function(a,b){return a.d-b.d;}).slice(0,3)
   .sort(function(a,b){return b.g.position.y-a.g.position.y;})
@@ -122,7 +137,8 @@ grays.map(function(g){var d=Math.min.apply(null,picks.map(function(p){return g.p
     var g=o.g;g.material=blueMat;g.remove(g.children[0]);picks.push(g);
     var rl=Math.hypot(g.position.x,g.position.z)||1;
     var end=g.position.clone().add(new T.Vector3(g.position.x/rl*2.2,-2.8,g.position.z/rl*2.2));
-    mkTag(g,end,'Datum X','Hack '+(i+1));
+    var cfg=hackTermine[i]||{date:'Datum offen',head:'Hack '+(i+1)};
+    mkTag(g,end,cfg.date,cfg.head);
   });
 
 function hit(e){
