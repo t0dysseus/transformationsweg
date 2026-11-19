@@ -12,7 +12,7 @@
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
-.app{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:16px;padding:16px;max-width:1200px;margin:0 auto}
+.app{display:grid;grid-template-columns:1fr minmax(300px,380px);gap:16px;padding:16px;max-width:1200px;margin:0 auto}
 @media (max-width:760px){.app{grid-template-columns:1fr}}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
 h1{font-size:18px;margin:0 0 4px}h2{font-size:13px;margin:0 0 8px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
@@ -42,6 +42,7 @@ details.adv>summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--fg
 </head>
 <body>
 <div class="app">
+  <div class="stage"><div class="chips" id="thm" style="justify-content:center;margin-bottom:10px"><button data-t="light">Hell</button><button data-t="dark">Dunkel</button></div><canvas id="cv"></canvas></div>
   <div>
     <div class="card"><h1>Plakat-Generator</h1><div id="texts"></div><div class="row"><button class="pri big" id="bPdf">PDF erstellen</button></div><div id="msg"></div></div>
     <details class="card adv"><summary>Erweiterte Möglichkeiten</summary>
@@ -53,7 +54,6 @@ details.adv>summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--fg
       <div class="row"><button id="bPng">PNG speichern</button><button id="bReset">Zurücksetzen</button></div>
     </details>
   </div>
-  <div class="stage"><div class="chips" id="thm" style="justify-content:center;margin-bottom:10px"><button data-t="light">Hell</button><button data-t="dark">Dunkel</button></div><canvas id="cv"></canvas></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
@@ -63,15 +63,15 @@ const TH={
  light:{bg:'#ffffff',title:'#000000',sub:'#000000',dates:'#000000',claim:'#000000',base:'#000000',band:'#d4ecfc',footTx:'#000000',rib:'#111111',ribB:'#1ea0f0',logo:'#8fa3b5'},
  dark:{bg:'#15151a',title:'#ffffff',sub:'#ffffff',dates:'#ffffff',claim:'#ffffff',base:'#ffffff',band:'#16314a',footTx:'#ffffff',rib:'#e6e6ee',ribB:'#3cb0ff',logo:'#9fb8cc'}};
 const CL={bg:'Hintergrund',title:'Titel',sub:'Untertitel',dates:'Termine',claim:'Claim',base:'Anmeldetext & Logo-Text',band:'Fußzeile Fläche',footTx:'Fußzeile Text',rib:'Bänder schwarz',ribB:'Band blau',logo:'Logo-Raster'};
-const DEF=()=>({theme:'light',fT:'Atkinson Hyperlegible',fB:'Atkinson Hyperlegible',fmt:'a4',both:false,sel:'title',
+const DEF=()=>({theme:'dark',fT:'Atkinson Hyperlegible',fB:'Atkinson Hyperlegible',fmt:'a4',both:false,sel:'title',
  tx:{title:'Hackathon',sub:'CJD Sickingen Straße',dates:'1.12.26\n5.12.26\n9.12.26',claim:'Dein CJD braucht deine Ideen!',cta:'Melde dich jetzt bei *Moodle* an und\nerfahre mehr über die *Themenauswahl*.',logo:'Räume\nfür Jeden',foot:'In Zusammenarbeit mit dem Masterstudiengang Transformation Design & Print der BHT'},
  pos:{title:{x:55.6,y:6,s:1},dates:{x:3.2,y:69.2,s:1},claim:{x:55.8,y:61.8,s:1},cta:{x:55.6,y:66.7,s:1},logo:{x:7.9,y:92.5,s:1},foot:{x:1.2,y:99.1,s:1},
   rib1:{x:0,y:0,s:1},rib2:{x:0,y:0,s:1},rib3:{x:0,y:0,s:1},rib4:{x:0,y:0,s:1}},
  th:JSON.parse(JSON.stringify(TH))});
 let S=DEF();
-try{const o3=localStorage.getItem('plakat-gen3'),j=JSON.parse(o3||localStorage.getItem('plakat-gen2')||'null');if(j&&!o3){delete j.fT;delete j.fB}if(j){for(const k of['tx','pos','th'])for(const a in j[k]||{})if(S[k][a]!==undefined)S[k][a]=typeof j[k][a]==='object'?Object.assign(S[k][a],j[k][a]):j[k][a];for(const k of['theme','fT','fB','fmt','both'])if(j[k]!==undefined)S[k]=j[k]}}catch(e){}
+try{const o4=localStorage.getItem('plakat-gen4'),j=JSON.parse(o4||localStorage.getItem('plakat-gen3')||localStorage.getItem('plakat-gen2')||'null');if(j&&!o4){delete j.fT;delete j.fB;delete j.theme;delete j.th}if(j){for(const k of['tx','pos','th'])for(const a in j[k]||{})if(S[k][a]!==undefined)S[k][a]=typeof j[k][a]==='object'?Object.assign(S[k][a],j[k][a]):j[k][a];for(const k of['theme','fT','fB','fmt','both'])if(j[k]!==undefined)S[k]=j[k]}}catch(e){}
 const imgs={};
-const save=()=>{try{const{sel,...r}=S;localStorage.setItem('plakat-gen3',JSON.stringify(r))}catch(e){}};
+const save=()=>{try{const{sel,...r}=S;localStorage.setItem('plakat-gen4',JSON.stringify(r))}catch(e){}};
 const fam=f=>f==='Arial'?'Arial,Helvetica,sans-serif':f==='Atkinson Hyperlegible'?'"Atkinson Hyperlegible",Arial,Helvetica,sans-serif':'"Archivo Black","Arial Black",Impact,sans-serif';
 const F=(f,px,b)=>(f==='Archivo Black'?'400 ':(b?'700 ':'400 '))+px+'px '+fam(f);
 const lines=t=>String(t).split('\n').map(s=>s.trim()).filter(Boolean);

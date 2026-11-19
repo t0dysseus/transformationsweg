@@ -12,7 +12,7 @@
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
-.app{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:16px;padding:16px;max-width:1200px;margin:0 auto}
+.app{display:grid;grid-template-columns:1fr minmax(300px,380px);gap:16px;padding:16px;max-width:1200px;margin:0 auto}
 @media (max-width:760px){.app{grid-template-columns:1fr}}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
 h1{font-size:18px;margin:0 0 4px}h2{font-size:13px;margin:0 0 8px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
@@ -42,6 +42,7 @@ details.adv>summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--fg
 </head>
 <body>
 <div class="app">
+  <div class="stage"><canvas id="cv"></canvas></div>
   <div>
     <div class="card"><h1>Kompetenznachweis-Generator</h1><div id="texts"></div><div class="row"><button class="pri big" id="bPdf">PDF erstellen</button></div><div id="msg"></div></div>
     <details class="card adv"><summary>Erweiterte Möglichkeiten</summary>
@@ -53,7 +54,6 @@ details.adv>summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--fg
       <div class="row"><button id="bPng">PNG speichern</button><button id="bReset">Zurücksetzen</button></div>
     </details>
   </div>
-  <div class="stage"><canvas id="cv"></canvas></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
@@ -61,15 +61,15 @@ const $=s=>document.querySelector(s);
 const adv=document.querySelector('details.adv');
 //#CORE-START
 // ---- Kern: Layout nach Designvorlage (weißes Plakat, Drahtgitter-Bänder, hellblaue Fußleiste) ----
-const TH={bg:'#ffffff',title:'#000000',text:'#000000',ribA:'#000000',ribB:'#000000',ribC:'#1f9bea',band:'#d6eefc',logo:'#8fa3b5',logoTx:'#000000',foot:'#2a2a2a',line:'#000000'};
+const TH={bg:'#15151a',title:'#ffffff',text:'#ffffff',ribA:'#e6e6ee',ribB:'#e6e6ee',ribC:'#3cb0ff',band:'#16314a',logo:'#9fb8cc',logoTx:'#ffffff',foot:'#ffffff',line:'#ffffff'};
 const CL={bg:'Hintergrund',title:'Titel',text:'Text',ribA:'Band 1 (Netz)',ribB:'Band 2 (Netz)',ribC:'Band 3 (Netz)',band:'Fußleiste',logo:'Logo Netz',logoTx:'Logo Text',foot:'Fußzeile',line:'Unterschriftslinie'};
 const DEF=()=>({fT:'Atkinson Hyperlegible',fB:'Atkinson Hyperlegible',fmt:'a4',sel:'title',
  tx:{title:'Kompetenz-\nnachweis',sub:'CJD Hackathon',name:'Max\nMustermann',date:'1., 5. und 9.12.2026',event:'CJD Hackathon',thema:'Thema des Hackathons',focus:'Konzeption\nTeamarbeit\nKommunikation\nPräsentation',free:'',signName:'Vorname Nachname',signRole:'',logo:'Räume\nfür Jeden',foot:'In Zusammenarbeit mit dem Masterstudiengang Transformation Design & Print der BHT'},
  pos:{title:{x:55.7,y:6.3,s:1},sub:{x:55.7,y:18.2,s:1},name:{x:3.3,y:65,s:1},body:{x:55.7,y:64.5,s:1},sign:{x:55.7,y:83,s:1},logo:{x:7.7,y:92.8,s:1},foot:{x:1.2,y:99.3,s:1},ribA:{x:0,y:0,s:1},ribB:{x:0,y:0,s:1},ribC:{x:0,y:0,s:1}},
  th:Object.assign({},TH)});
 let S=DEF();
-try{const o3=localStorage.getItem('kompetenz-gen3'),j=JSON.parse(o3||localStorage.getItem('kompetenz-gen2')||'null');if(j&&!o3){delete j.fT;delete j.fB}if(j){for(const k of['tx','pos','th'])for(const a in j[k]||{})S[k][a]=(typeof j[k][a]==='object')?Object.assign(S[k][a]||{},j[k][a]):j[k][a];for(const k of['fT','fB','fmt'])if(j[k]!==undefined)S[k]=j[k]}}catch(e){}
-const save=()=>{try{const{sel,...r}=S;localStorage.setItem('kompetenz-gen3',JSON.stringify(r))}catch(e){}};
+try{const o4=localStorage.getItem('kompetenz-gen4'),j=JSON.parse(o4||localStorage.getItem('kompetenz-gen3')||localStorage.getItem('kompetenz-gen2')||'null');if(j&&!o4){delete j.fT;delete j.fB;delete j.theme;delete j.th}if(j){for(const k of['tx','pos','th'])for(const a in j[k]||{})S[k][a]=(typeof j[k][a]==='object')?Object.assign(S[k][a]||{},j[k][a]):j[k][a];for(const k of['fT','fB','fmt'])if(j[k]!==undefined)S[k]=j[k]}}catch(e){}
+const save=()=>{try{const{sel,...r}=S;localStorage.setItem('kompetenz-gen4',JSON.stringify(r))}catch(e){}};
 const FONTS={'Arial':{css:'"Helvetica Neue",Helvetica,Arial,sans-serif',ls:-.01},'IBM Plex Sans':{css:'"IBM Plex Sans",Arial,Helvetica,sans-serif',ls:-.012},'Atkinson Hyperlegible':{css:'"Atkinson Hyperlegible",Arial,Helvetica,sans-serif',ls:-.01},'Archivo Black':{css:'"Archivo Black","Arial Black",Impact,sans-serif',ls:-.02}};
 const FD=f=>FONTS[f]||FONTS.Arial;
 const F2=(f,px,w)=>(f==='Archivo Black'?400:w)+' '+px+'px '+FD(f).css;
