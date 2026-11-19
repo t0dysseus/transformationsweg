@@ -187,6 +187,55 @@ function rebuildBand(turns){
 rebuildBand(twistValue);
 let cutMix=0,cutTarget=0;
 
+// Web Audio Soundeffekte für Knotenpunkte (1..4) und Interaktionen
+let audioCtx=null;
+function ensureAudio(){
+  if(!audioCtx){
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(AC)audioCtx=new AC();
+  }
+  if(audioCtx&&audioCtx.state==="suspended"){
+    audioCtx.resume().catch(()=>{});
+  }
+  return audioCtx;
+}
+function playNodeSound(idx,strength=1){
+  const ctx=ensureAudio();if(!ctx)return;
+  const now=ctx.currentTime;
+  const notes=[329.63,392.00,493.88,587.33]; // E4, G4, B4, D5
+  const freq=notes[idx%notes.length];
+  const peak=Math.min(0.08,0.025+0.035*strength);
+
+  const osc=ctx.createOscillator();
+  const gain=ctx.createGain();
+  osc.type="sine";
+  osc.frequency.setValueAtTime(freq,now);
+  osc.frequency.exponentialRampToValueAtTime(freq*1.015,now+0.18);
+
+  gain.gain.setValueAtTime(0.0005,now);
+  gain.gain.linearRampToValueAtTime(peak,now+0.015);
+  gain.gain.exponentialRampToValueAtTime(0.0004,now+0.22);
+
+  osc.connect(gain);gain.connect(ctx.destination);
+  osc.start(now);osc.stop(now+0.23);
+}
+function playDockSound(opening){
+  const ctx=ensureAudio();if(!ctx)return;
+  const now=ctx.currentTime;
+  const osc=ctx.createOscillator();
+  const gain=ctx.createGain();
+  osc.type="triangle";
+  osc.frequency.setValueAtTime(opening?240:380,now);
+  osc.frequency.exponentialRampToValueAtTime(opening?420:210,now+0.13);
+
+  gain.gain.setValueAtTime(0.0005,now);
+  gain.gain.linearRampToValueAtTime(0.03,now+0.015);
+  gain.gain.exponentialRampToValueAtTime(0.0004,now+0.14);
+
+  osc.connect(gain);gain.connect(ctx.destination);
+  osc.start(now);osc.stop(now+0.15);
+}
+
 const ball=new THREE.Mesh(
   new THREE.SphereGeometry(0.045,24,16),
   new THREE.MeshStandardMaterial({color:0x4cc9f0,emissive:0x12384a,roughness:0.28,metalness:0.12})
@@ -226,6 +275,7 @@ let qOpen=false,bandDock=0,dockDelayTimer=0,pendingOpenCards=false,pendingUndock
 function clearSeqTimers(){seqTimers.forEach(id=>clearTimeout(id));seqTimers=[];}
 
 const toggleBig=i=>{
+  playNodeSound(i,0.9);
   cards.forEach((c,k)=>{
     if(k===i)c.classList.toggle("big");else c.classList.remove("big");
     c._big.textContent=c.classList.contains("big")?"✕":"⤢";
@@ -251,7 +301,11 @@ const nodes=LINKS.map((L,i)=>{
   const c=document.createElementNS(NS,"circle");c.setAttribute("r","11");c.setAttribute("fill","#000");c.setAttribute("stroke","#4cc9f0");c.setAttribute("stroke-width","2");
   const tx=document.createElementNS(NS,"text");tx.setAttribute("text-anchor","middle");tx.setAttribute("dy","4");tx.setAttribute("fill","#e8fbff");tx.setAttribute("font-size","12");tx.setAttribute("font-weight","600");tx.setAttribute("font-family","IBM Plex Sans, system-ui, sans-serif");tx.textContent=i+1;
   gn.append(c,tx);
-  gn.addEventListener("click",()=>{if(!qOpen)triggerQ(true);toggleBig(i);});
+  gn.addEventListener("click",()=>{
+    playNodeSound(i,1);
+    if(!qOpen)triggerQ(true);
+    toggleBig(i);
+  });
   svg.append(line,gn);
   return {line,gn,circle:c,t:L.t};
 });
@@ -265,6 +319,7 @@ function openCardsSequence(){
       void card.offsetWidth;
       card.classList.add("open");
       nodeFlash[i]=Math.max(nodeFlash[i],0.75);
+      playNodeSound(i,0.55);
     },i*STAGGER_OPEN_SEC*1000);
     seqTimers.push(tid);
   });
@@ -285,6 +340,7 @@ function closeCardsSequence(){
 
 function triggerQ(forceState){
   qOpen=(typeof forceState==="boolean")?forceState:!qOpen;
+  playDockSound(qOpen);
   clearSeqTimers();
   if(qOpen){
     pendingUndock=false;pendingOpenCards=true;dockDelayTimer=0.28;
@@ -329,6 +385,7 @@ function hitHandle(){
 }
 
 canvas.addEventListener("pointerdown",e=>{
+  ensureAudio();
   group.updateMatrixWorld(true);
   camera.updateMatrixWorld();
   setRay(e);
@@ -433,6 +490,7 @@ const tmp=V3(0,0,0);
           const receiver=pulses[(pi+1)%pulses.length];
           receiver.energy=Math.min(1.4,receiver.energy+transfer);
           nodeFlash[ni]=1;
+          playNodeSound(ni,transfer*6);
         }
       });
       updatePulse(pulse);
