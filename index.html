@@ -92,47 +92,35 @@ const group=new THREE.Group();scene.add(group);
 const S=0.62,A=0.4,N=18,HW=0.12,K=3,U=420,V=10;
 const pt=t=>V3(S*(2*Math.cos(t)+A*Math.cos(2*t)),S*(2*Math.sin(t)-A*Math.sin(2*t)),0);
 const prof=x=>x+0.1*Math.sin(6*Math.PI*x)/Math.PI;
-const curve=new THREE.CatmullRomCurve3(Array.from({length:N},(_,q)=>pt(q/N*TAU)),true,"centripetal");
-const C=[],T=[],Uv=[],Ws=[];
-for(let i=0;i<U;i++)C.push(curve.getPoint(i/U));
-C.push(C[0].clone());
-for(let i=0;i<=U;i++)T.push(C[(i+1)%U].clone().sub(C[(i+U-1)%U]).normalize());
-const u0=V3(0,0,1).addScaledVector(T[0],-T[0].z).normalize();
-Uv.push(u0.clone());
-const uu=u0.clone();
-for(let i=1;i<=U;i++){uu.addScaledVector(T[i],-uu.dot(T[i])).normalize();Uv.push(uu.clone());}
-const delta=Math.atan2(T[0].dot(new THREE.Vector3().crossVectors(Uv[0],Uv[U])),Uv[0].dot(Uv[U]));
-const target=K*Math.PI-delta,phiEnd=target+TAU*Math.round((K*Math.PI-target)/TAU);
+const startPts=Array.from({length:N},(_,q)=>pt(q/N*TAU));
+let curveLen=0;
+for(let q=0;q<N;q++)curveLen+=startPts[q].distanceTo(startPts[(q+1)%N]);
+const proxyRad=Math.min(0.28,0.38*curveLen/N);
+const allProxies=[];
+const proxies=startPts.map(p=>{
+  const m=new THREE.Mesh(
+    new THREE.SphereGeometry(proxyRad,10,8),
+    new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false})
+  );
+  m.position.copy(p);
+  group.add(m);
+  allProxies.push(m);
+  return m;
+});
+
+let activeCurve=new THREE.CatmullRomCurve3(proxies.map(m=>m.position),true,"centripetal");
+const C=Array.from({length:U+1},()=>V3(0,0,0));
+const T=Array.from({length:U+1},()=>V3(1,0,0));
+const Uv=Array.from({length:U+1},()=>V3(0,0,1));
+const Ws=Array.from({length:U+1},()=>V3(0,0,1));
 const posArr=new Float32Array((U+1)*(V+1)*3),idx=[];
 for(let i=0;i<U;i++)for(let j=0;j<V;j++){const a=i*(V+1)+j,b=a+V+1;idx.push(a,b,a+1,b,b+1,a+1);}
-for(let i=0;i<=U;i++){
-  const ph=phiEnd*prof(i/U);
-  const w=Uv[i].clone().multiplyScalar(Math.cos(ph)).addScaledVector(new THREE.Vector3().crossVectors(T[i],Uv[i]),Math.sin(ph));
-  Ws.push(w.clone());
-  for(let j=0;j<=V;j++){const v=(-1+2*j/V)*HW,o=(i*(V+1)+j)*3;posArr[o]=C[i].x+w.x*v;posArr[o+1]=C[i].y+w.y*v;posArr[o+2]=C[i].z+w.z*v;}
-}
 const g=new THREE.BufferGeometry();
 g.setAttribute("position",new THREE.BufferAttribute(posArr,3));g.setIndex(idx);
 const occ=new THREE.Mesh(g,new THREE.MeshBasicMaterial({colorWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));
 occ.frustumCulled=false;group.add(occ);
 const band=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:0.85}));
 band.frustumCulled=false;group.add(band);
-
-let twistValue=3,twistStart=3,twistTarget=3,twistElapsed=0;
-function updateTwist(turns){
-  const endAngle=turns*Math.PI-delta;
-  for(let i=0;i<=U;i++){
-    const ph=endAngle*prof(i/U);
-    const w=Uv[i].clone().multiplyScalar(Math.cos(ph)).addScaledVector(new THREE.Vector3().crossVectors(T[i],Uv[i]),Math.sin(ph));
-    Ws[i].copy(w);
-    for(let j=0;j<=V;j++){
-      const v=(-1+2*j/V)*HW,o=(i*(V+1)+j)*3;
-      posArr[o]=C[i].x+w.x*v;posArr[o+1]=C[i].y+w.y*v;posArr[o+2]=C[i].z+w.z*v;
-    }
-  }
-  g.attributes.position.needsUpdate=true;
-  g.computeBoundingSphere();
-}
 
 const cutPos=new Float32Array((2*U+1)*(V+1)*3),cutIdx=[];
 for(let i=0;i<2*U;i++)for(let j=0;j<V;j++){const a=i*(V+1)+j,b=a+V+1;cutIdx.push(a,b,a+1,b,b+1,a+1);}
@@ -141,6 +129,7 @@ cutGeometry.setAttribute("position",new THREE.BufferAttribute(cutPos,3));
 cutGeometry.setIndex(cutIdx);
 const cutMaterial=new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:0,side:THREE.DoubleSide});
 const cutBand=new THREE.Mesh(cutGeometry,cutMaterial);cutBand.frustumCulled=false;group.add(cutBand);
+
 function buildCutBand(){
   const path=[],sideNormals=[],edge=HW*0.72;
   for(let i=0;i<=U;i++){
@@ -166,7 +155,36 @@ function buildCutBand(){
   }
   cutGeometry.attributes.position.needsUpdate=true;cutGeometry.computeBoundingSphere();
 }
-buildCutBand();
+
+let twistValue=3,twistStart=3,twistTarget=3,twistElapsed=0;
+let phiPrev=K*Math.PI;
+function rebuildBand(turns){
+  activeCurve=new THREE.CatmullRomCurve3(proxies.map(m=>m.position),true,"centripetal");
+  for(let i=0;i<U;i++)C[i].copy(activeCurve.getPoint(i/U));
+  C[U].copy(C[0]);
+  for(let i=0;i<=U;i++)T[i].copy(C[(i+1)%U]).sub(C[(i+U-1)%U]).normalize();
+  const u0=V3(0,0,1).addScaledVector(T[0],-T[0].z).normalize();
+  Uv[0].copy(u0);
+  const uu=u0.clone();
+  for(let i=1;i<=U;i++){uu.addScaledVector(T[i],-uu.dot(T[i])).normalize();Uv[i].copy(uu);}
+  const delta=Math.atan2(T[0].dot(new THREE.Vector3().crossVectors(Uv[0],Uv[U])),Uv[0].dot(Uv[U]));
+  const target=turns*Math.PI-delta;
+  const phiEnd=target+TAU*Math.round((phiPrev-target)/TAU);
+  phiPrev=phiEnd;
+  for(let i=0;i<=U;i++){
+    const ph=phiEnd*prof(i/U);
+    const w=Uv[i].clone().multiplyScalar(Math.cos(ph)).addScaledVector(new THREE.Vector3().crossVectors(T[i],Uv[i]),Math.sin(ph));
+    Ws[i].copy(w);
+    for(let j=0;j<=V;j++){
+      const v=(-1+2*j/V)*HW,o=(i*(V+1)+j)*3;
+      posArr[o]=C[i].x+w.x*v;posArr[o+1]=C[i].y+w.y*v;posArr[o+2]=C[i].z+w.z*v;
+    }
+  }
+  g.attributes.position.needsUpdate=true;
+  g.computeBoundingSphere();
+  buildCutBand();
+}
+rebuildBand(twistValue);
 let cutMix=0,cutTarget=0;
 
 const ball=new THREE.Mesh(
@@ -235,7 +253,7 @@ const nodes=LINKS.map((L,i)=>{
   gn.append(c,tx);
   gn.addEventListener("click",()=>{if(!qOpen)triggerQ(true);toggleBig(i);});
   svg.append(line,gn);
-  return {line,gn,circle:c,local:curve.getPoint(L.t),t:L.t};
+  return {line,gn,circle:c,t:L.t};
 });
 
 function openCardsSequence(){
@@ -291,26 +309,81 @@ addEventListener("keydown",e=>{
     pulses.forEach(p=>{p.group.visible=pulsesActive;});
     if(pulsesActive){pulses.forEach((p,i)=>{p.phase=i/4;p.energy=[0.95,0.45,0.7,0.3][i];});nodeFlash.fill(0);}
   }
+  if(k==="w"){
+    proxies.forEach((m,q)=>m.position.copy(startPts[q]));
+    phiPrev=twistValue*Math.PI;
+    rebuildBand(twistValue);
+  }
 });
 
 const R0=0.35;
-let rx=R0,ry=0,zf=1,spin=true,drag=false,moved=false,dx0=0,dy0=0,lx=0,ly=0,fitDist=9,land=true,last=performance.now();
-canvas.addEventListener("pointerdown",e=>{drag=true;moved=false;dx0=lx=e.clientX;dy0=ly=e.clientY;canvas.setPointerCapture(e.pointerId);canvas.style.cursor="grabbing";});
+let rx=R0,ry=0,zf=1,spin=true,dragMode=null,activeProxy=null,moved=false,dx0=0,dy0=0,lx=0,ly=0,fitDist=9,land=true,last=performance.now();
+const ray=new THREE.Raycaster(),ndc=new THREE.Vector2(),dragPlane=new THREE.Plane();
+function setRay(e){
+  const r=canvas.getBoundingClientRect();
+  ndc.set((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);
+  ray.setFromCamera(ndc,camera);
+}
+function hitHandle(){
+  return ray.intersectObjects(allProxies,false)[0];
+}
+
+canvas.addEventListener("pointerdown",e=>{
+  group.updateMatrixWorld(true);
+  camera.updateMatrixWorld();
+  setRay(e);
+  const hit=hitHandle();
+  moved=false;dx0=lx=e.clientX;dy0=ly=e.clientY;
+  if(hit){
+    activeProxy=hit.object;
+    dragMode="h";
+    dragPlane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(V3(0,0,0)),activeProxy.getWorldPosition(V3(0,0,0)));
+    canvas.style.cursor="grabbing";
+  }else{
+    dragMode="r";
+    canvas.style.cursor="grabbing";
+  }
+  canvas.setPointerCapture(e.pointerId);
+});
+
 canvas.addEventListener("pointermove",e=>{
-  if(!drag)return;
-  if(Math.hypot(e.clientX-dx0,e.clientY-dy0)>6)moved=true;
-  ry+=(e.clientX-lx)*0.01;rx+=(e.clientY-ly)*0.01;lx=e.clientX;ly=e.clientY;
+  setRay(e);
+  if(dragMode==="h"&&activeProxy){
+    if(Math.hypot(e.clientX-dx0,e.clientY-dy0)>3)moved=true;
+    const hitPt=V3(0,0,0);
+    if(ray.ray.intersectPlane(dragPlane,hitPt)){
+      group.updateMatrixWorld(true);
+      activeProxy.position.copy(group.worldToLocal(hitPt));
+      rebuildBand(twistValue);
+    }
+  }else if(dragMode==="r"){
+    if(Math.hypot(e.clientX-dx0,e.clientY-dy0)>6)moved=true;
+    ry+=(e.clientX-lx)*0.01;
+    rx+=(e.clientY-ly)*0.01;
+    lx=e.clientX;
+    ly=e.clientY;
+  }else{
+    canvas.style.cursor=hitHandle()?"pointer":"grab";
+  }
 });
-canvas.addEventListener("pointerup",()=>{
-  const wasClick=drag&&!moved;
-  drag=false;canvas.style.cursor="grab";
-  if(wasClick)triggerQ();
+
+canvas.addEventListener("pointerup",e=>{
+  const wasCanvasClick=(dragMode==="r")&&!moved;
+  dragMode=null;activeProxy=null;
+  setRay(e);
+  canvas.style.cursor=hitHandle()?"pointer":"grab";
+  if(wasCanvasClick)triggerQ();
 });
-canvas.addEventListener("pointercancel",()=>{drag=false;canvas.style.cursor="grab";});
+
+canvas.addEventListener("pointercancel",()=>{
+  dragMode=null;activeProxy=null;canvas.style.cursor="grab";
+});
+
 document.addEventListener("click",e=>{
   if(e.target===canvas||e.target.closest(".card, #cords .node"))return;
   triggerQ();
 });
+
 canvas.addEventListener("wheel",e=>{e.preventDefault();zf=Math.min(2,Math.max(0.5,zf+e.deltaY*0.001));},{passive:false});
 
 function layout(){
@@ -327,7 +400,7 @@ addEventListener("resize",layout);layout();
 const tmp=V3(0,0,0);
 (function loop(){requestAnimationFrame(loop);
   const now=performance.now(),dt=Math.min((now-last)/1000,0.1);last=now;
-  if(spin&&!drag)ry+=dt*0.24;
+  if(spin&&dragMode!=="r")ry+=dt*0.24;
 
   cutMix+=((cutTarget?1:0)-cutMix)*Math.min(1,dt*2.2);
   cutMaterial.opacity=cutMix*0.85;
@@ -335,7 +408,7 @@ const tmp=V3(0,0,0);
     twistElapsed=Math.min(3.2,twistElapsed+dt);
     const q=twistElapsed/3.2,ease=q*q*(3-2*q);
     twistValue=twistStart+(twistTarget-twistStart)*ease;
-    updateTwist(twistValue);
+    rebuildBand(twistValue);
   }
   band.material.opacity=0.85*(1-cutMix);
   occ.visible=cutMix<0.5;
