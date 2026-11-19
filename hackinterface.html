@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hackathon Sprint-Cockpit</title>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f5f7;--card:#ffffff;--fg:#1a1d23;--mut:#6b7280;--bd:#d9dce2;
+  --ac:#1f9bea;--ac-soft:#d6eefc;--acf:#ffffff;--warn:#d97706;--ok:#15803d;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#15151a;--card:#202227;--fg:#eceef2;--mut:#9aa1ad;--bd:#343740;
+  --ac:#3cb0ff;--ac-soft:#16314a;--acf:#0b1a26;--warn:#f59e0b;--ok:#4ade80;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg);color:var(--fg);
+  font:15px/1.45 "Atkinson Hyperlegible",system-ui,-apple-system,sans-serif;
+  padding:16px;
+}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+
+/* Topbar */
+.topbar{
+  background:var(--card);border:1px solid var(--bd);border-radius:14px;
+  padding:12px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+}
+.brand{display:flex;align-items:center;gap:10px}
+.brand h1{font-size:18px;margin:0;letter-spacing:-.01em}
+.badge{
+  background:var(--ac-soft);color:var(--fg);font-size:12px;font-weight:700;
+  padding:4px 10px;border-radius:999px;
+}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+button,select{
+  font:inherit;font-size:13px;border:1px solid var(--bd);background:var(--card);
+  color:var(--fg);border-radius:999px;padding:6px 13px;cursor:pointer;transition:.15s;
+}
+button:hover{border-color:var(--ac)}
+button.on{background:var(--ac);color:var(--acf);border-color:var(--ac);font-weight:700}
+button.pri{background:var(--ac);color:var(--acf);border-color:var(--ac);font-weight:700}
+
+/* Timeline / Timer Strip */
+.timer-card{
+  background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px 16px;
+  display:grid;grid-template-columns:240px 1fr auto;gap:16px;align-items:center;
+}
+@media(max-width:860px){.timer-card{grid-template-columns:1fr}}
+.clock-box{
+  background:var(--ac-soft);border-radius:10px;padding:10px 14px;
+  display:flex;flex-direction:column;gap:2px;
+}
+.clock-time{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.clock-sub{font-size:12px;color:var(--fg);opacity:.85}
+.phases{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+@media(max-width:680px){.phases{grid-template-columns:1fr}}
+.phase{
+  border:1px solid var(--bd);border-radius:10px;padding:8px 10px;cursor:pointer;
+  background:var(--bg);transition:.15s;
+}
+.phase.active{border-color:var(--ac);background:var(--ac-soft)}
+.phase .p-time{font-size:11px;font-weight:700;color:var(--mut);font-variant-numeric:tabular-nums}
+.phase.active .p-time{color:var(--fg)}
+.phase .p-name{font-size:13px;font-weight:700;margin-top:2px}
+.phase .p-hint{font-size:11px;color:var(--mut);margin-top:2px;line-height:1.25}
+
+/* Main Grid */
+.grid{display:grid;grid-template-columns:1.35fr 1fr;gap:14px;align-items:start}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px}
+.card h2{
+  font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);
+  margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;
+}
+label.lbl{display:block;font-size:13px;font-weight:700;margin:12px 0 3px}
+label.lbl:first-of-type{margin-top:4px}
+.guide{font-size:12px;color:var(--mut);margin:0 0 6px;line-height:1.35}
+textarea,input[type=text]{
+  width:100%;font:inherit;font-size:14px;background:var(--bg);color:var(--fg);
+  border:1px solid var(--bd);border-radius:9px;padding:9px 11px;resize:vertical;
+}
+textarea:focus,input[type=text]:focus{outline:none;border-color:var(--ac)}
+
+/* Roles & Blocker Tools */
+.roles-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(max-width:520px){.roles-grid{grid-template-columns:1fr}}
+.role-item{background:var(--bg);border:1px solid var(--bd);border-radius:9px;padding:8px 10px}
+.role-item span{display:block;font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase}
+.role-item input{margin-top:4px;padding:5px 8px;font-size:13px;background:var(--card)}
+
+/* Checklist */
+.chk-list{display:flex;flex-direction:column;gap:7px}
+.chk{
+  display:flex;align-items:flex-start;gap:9px;background:var(--bg);
+  border:1px solid var(--bd);border-radius:9px;padding:8px 10px;cursor:pointer;font-size:13px;
+}
+.chk input{margin-top:3px;accent-color:var(--ac);width:16px;height:16px}
+.chk.done{opacity:.65;text-decoration:line-through}
+
+/* Decision Timer Banner */
+.dec-box{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--bg);border:1px dashed var(--bd);border-radius:10px;padding:9px 12px;margin-top:10px;
+}
+.dec-val{font-weight:700;font-variant-numeric:tabular-nums;font-size:16px}
+
+.foot-bar{
+  background:var(--ac-soft);border-radius:12px;padding:10px 14px;
+  display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;font-size:12px;
+}
+#msg{font-weight:700;color:var(--ac)}
+
+@media print{
+  .topbar .chips,.timer-card button,.dec-box button,.foot-bar button{display:none!important}
+  body{background:#fff;color:#000;padding:0}
+  .card,.timer-card,.topbar{box-shadow:none;border:1px solid #ccc}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="brand">
+      <h1>Hackathon Sprint-Cockpit</h1>
+      <span class="badge">10:00 – 13:30 Uhr · 100 % Lokal</span>
+    </div>
+    <div class="chips" id="hackTabs">
+      <button data-h="0" class="on">Hack 1 · Mi 02.12.</button>
+      <button data-h="1">Hack 2 · Fr 04.12.</button>
+      <button data-h="2">Hack 3 · Fr 11.12.</button>
+    </div>
+    <div class="chips">
+      <button id="bTheme">Hell / Dunkel</button>
+      <button id="bReset">Hack zurücksetzen</button>
+    </div>
+  </header>
+
+  <!-- LIVE ZEITSTRAHL & PHASEN-TIMER -->
+  <section class="timer-card">
+    <div class="clock-box">
+      <div class="clock-sub" id="phaseLabel">Phase 1 · Einstieg & Zielbild</div>
+      <div class="clock-time" id="countdown">20:00</div>
+      <div class="clock-sub" id="realClock">Uhrzeit: --:--</div>
+    </div>
+
+    <div class="phases" id="phaseList">
+      <div class="phase active" data-min="20" data-title="Phase 1 · Einstieg (10:00–10:20)">
+        <div class="p-time">10:00 – 10:20</div>
+        <div class="p-name">1. Einstieg</div>
+        <div class="p-hint">Thema schärfen & Rollen klären</div>
+      </div>
+      <div class="phase" data-min="70" data-title="Phase 2 · Sprint 1 (10:20–11:30)">
+        <div class="p-time">10:20 – 11:30</div>
+        <div class="p-name">2. Sprint 1</div>
+        <div class="p-hint">Idee & Rohbau erstellen</div>
+      </div>
+      <div class="phase" data-min="30" data-title="Pause (11:30–12:00)">
+        <div class="p-time">11:30 – 12:00</div>
+        <div class="p-name">Pause</div>
+        <div class="p-hint">30 Min. Mittagspause</div>
+      </div>
+      <div class="phase" data-min="65" data-title="Phase 3 · Sprint 2 (12:00–13:05)">
+        <div class="p-time">12:00 – 13:05</div>
+        <div class="p-name">3. Sprint 2</div>
+        <div class="p-hint">Umsetzung & Feinschliff</div>
+      </div>
+      <div class="phase" data-min="25" data-title="Phase 4 · Showcase (13:05–13:30)">
+        <div class="p-time">13:05 – 13:30</div>
+        <div class="p-name">4. Abschluss</div>
+        <div class="p-hint">Vorstellen & Ergebnis sichern</div>
+      </div>
+    </div>
+
+    <div class="chips" style="flex-direction:column;align-items:stretch">
+      <button class="pri" id="bTimerToggle">Timer starten</button>
+      <button id="bTimerReset">Phase neu starten</button>
+    </div>
+  </section>
+
+  <!-- HAUPTBEREICH -->
+  <div class="grid">
+
+    <!-- LINKE SPALTE: ARBEITS-CANVAS (NUR REGIEANWEISUNGEN, KEINE BEISPIELINHALTE) -->
+    <div class="col">
+      <div class="card">
+        <h2><span id="canvasHeader">Hack 1 · Arbeits-Canvas</span><span>Struktur & Fokus</span></h2>
+
+        <label class="lbl">1. Themenbereich & Titel dieses Hacks</label>
+        <p class="guide">Anweisung: Tragt hier den übergeordneten Themenbereich (z. B. Hack 1) und euren gewählten Arbeitstitel ein.</p>
+        <input type="text" data-f="topic" placeholder="[Hier Themenbereich & Arbeitstitel eintragen]">
+
+        <label class="lbl">2. Konkretes Problem / Ausgangslage (max. 2 Sätze)</label>
+        <p class="guide">Anweisung: Beschreibt kurz, was aktuell fehlt, hakt oder gelöst werden soll – ohne schon Lösungen vorwegzunehmen.</p>
+        <textarea rows="2" data-f="problem" placeholder="[Hier Ausgangslage / Problemstellung beschreiben]"></textarea>
+
+        <label class="lbl">3. Zielgruppe & konkreter Nutzen</label>
+        <p class="guide">Anweisung: Für wen genau baut ihr das Ergebnis (z. B. Jugendliche, Mitarbeitende, Standort-Team) und was haben diese Leute konkret davon?</p>
+        <textarea rows="2" data-f="target" placeholder="[Hier Zielgruppe und konkreten Mehrwert eintragen]"></textarea>
+
+        <label class="lbl">4. Unser Tages-Prototyp (Was ist um 13:05 Uhr fertig?)</label>
+        <p class="guide">Anweisung: Legt euch bis 10:20 Uhr auf ein greifbares Ergebnis fest (z. B. ein Konzeptblatt, ein Plakat-/Social-Media-Set aus den Generatoren, ein Ablaufplan oder ein Prototyp).</p>
+        <textarea rows="3" data-f="prototype" placeholder="[Hier festlegen, welches konkrete Artefakt heute entsteht]"></textarea>
+
+        <label class="lbl">5. Kernaussagen / Inhalte für die Umsetzung</label>
+        <p class="guide">Anweisung: Sammelt hier Stichpunkte, Texte, Argumente oder Bausteine, die direkt in euer Ergebnis oder in die Generatoren übernommen werden.</p>
+        <textarea rows="4" data-f="notes" placeholder="[Hier Stichpunkte, Bausteine und Arbeitsergebnisse sammeln]"></textarea>
+      </div>
+    </div>
+
+    <!-- RECHTE SPALTE: TEAM-KOORDINATION, ENTSCHEIDUNGSHILFE & ÜBERGABE -->
+    <div class="col">
+
+      <!-- ROLLEN & FOKUS-WERKZEUGE -->
+      <div class="card">
+        <h2><span>Team-Koordination (Diverse Teams)</span><button id="bShuffleRoles" style="padding:3px 10px;font-size:11px">Rollen mischen</button></h2>
+        <p class="guide">Anweisung: Tragt eure Vornamen ein und verteilt 4 klare Mini-Rollen, damit niemand untergeht und das Tempo stimmt.</p>
+        <div class="roles-grid">
+          <div class="role-item">
+            <span>Zeit & Fokus</span>
+            <input type="text" data-f="rTime" placeholder="[Name eintragen]">
+          </div>
+          <div class="role-item">
+            <span>Prototyp / Tools</span>
+            <input type="text" data-f="rBuild" placeholder="[Name eintragen]">
+          </div>
+          <div class="role-item">
+            <span>Text & Struktur</span>
+            <input type="text" data-f="rText" placeholder="[Name eintragen]">
+          </div>
+          <div class="role-item">
+            <span>Showcase / Pitch</span>
+            <input type="text" data-f="rPitch" placeholder="[Name eintragen]">
+          </div>
+        </div>
+
+        <div class="dec-box">
+          <div>
+            <div style="font-size:12px;font-weight:700">Endlos-Diskussion? 5-Minuten-Entscheidung</div>
+            <div style="font-size:11px;color:var(--mut)">Timer starten, danach per Handzeichen entscheiden.</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="dec-val" id="decClock">05:00</span>
+            <button id="bDecStart">5 Min.</button>
+          </div>
+        </div>
+
+        <label class="lbl" style="margin-top:10px">Themen-Parkplatz (Für später)</label>
+        <p class="guide">Anweisung: Ideen, die heute den 3-Stunden-Rahmen sprengen, hier parken statt ausdiskutieren.</p>
+        <textarea rows="2" data-f="parking" placeholder="[Hier offene Ideen für spätere Termine parken]"></textarea>
+      </div>
+
+      <!-- QUALITÄTS-CHECK & ÜBERGABE -->
+      <div class="card">
+        <h2><span>Abschluss & Übergabe (13:05 – 13:30 Uhr)</span></h2>
+        <div class="chk-list" id="chkList">
+          <label class="chk"><input type="checkbox" data-c="c1"><span>Ziel & Ergebnis sind in 2 Minuten verständlich erklärbar</span></label>
+          <label class="chk"><input type="checkbox" data-c="c2"><span>Mindestens 1 sichtbares Artefakt / Export liegt vor</span></label>
+          <label class="chk"><input type="checkbox" data-c="c3"><span>Nächste Schritte für das nächste Team / CJD sind notiert</span></label>
+        </div>
+
+        <label class="lbl">Übergabe-Notiz für das nächste Team / CJD</label>
+        <p class="guide">Anweisung: Was muss das Team am nächsten Termin wissen? Welche Dateien wurden erzeugt und wo liegen sie?</p>
+        <textarea rows="3" data-f="handover" placeholder="[Hier Zusammenfassung, Dateinamen und offene Punkte eintragen]"></textarea>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- EXPORT FOOTER -->
+  <footer class="foot-bar">
+    <div>Alle Eingaben bleiben lokal im Browser (kein Tracking). <span id="msg"></span></div>
+    <div class="chips">
+      <button class="pri" id="bExpMd">Ergebnis als Markdown (.md)</button>
+      <button id="bExpJson">Backup (.json)</button>
+      <button onclick="window.print()">Drucken / PDF</button>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const HACK_META=[
+  {label:'Hack 1 · Mi 02.12.2026',short:'Hack 1'},
+  {label:'Hack 2 · Fr 04.12.2026',short:'Hack 2'},
+  {label:'Hack 3 · Fr 11.12.2026',short:'Hack 3'}
+];
+
+const emptyHack=()=>({
+  topic:'',problem:'',target:'',prototype:'',notes:'',
+  rTime:'',rBuild:'',rText:'',rPitch:'',parking:'',handover:'',
+  c1:false,c2:false,c3:false
+});
+
+let S={cur:0,theme:'light',hacks:[emptyHack(),emptyHack(),emptyHack()]};
+try{
+  const saved=JSON.parse(localStorage.getItem('hackathon-cockpit-v1')||'null');
+  if(saved&&Array.isArray(saved.hacks)&&saved.hacks.length===3)S=saved;
+}catch(e){}
+const save=()=>{try{localStorage.setItem('hackathon-cockpit-v1',JSON.stringify(S))}catch(e){}};
+const cur=()=>S.hacks[S.cur];
+const msg=t=>{$('#msg').textContent=t;setTimeout(()=>{if($('#msg').textContent===t)$('#msg').textContent=''},3500)};
+
+// Theme
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme',S.theme);
+}
+$('#bTheme').onclick=()=>{S.theme=S.theme==='light'?'dark':'light';applyTheme();save()};
+applyTheme();
+
+// Hack Tabs
+function loadHack(idx){
+  S.cur=idx;
+  document.querySelectorAll('#hackTabs button').forEach(b=>b.classList.toggle('on',+b.dataset.h===idx));
+  $('#canvasHeader').textContent=HACK_META[idx].label+' · Arbeits-Canvas';
+  const h=cur();
+  document.querySelectorAll('[data-f]').forEach(el=>{el.value=h[el.dataset.f]||''});
+  document.querySelectorAll('[data-c]').forEach(el=>{
+    el.checked=!!h[el.dataset.c];
+    el.closest('.chk').classList.toggle('done',el.checked);
+  });
+  save();
+}
+document.querySelectorAll('#hackTabs button').forEach(b=>b.onclick=()=>loadHack(+b.dataset.h));
+
+// Live Binding
+document.querySelectorAll('[data-f]').forEach(el=>{
+  el.addEventListener('input',()=>{cur()[el.dataset.f]=el.value;save()});
+});
+document.querySelectorAll('[data-c]').forEach(el=>{
+  el.addEventListener('change',()=>{
+    cur()[el.dataset.c]=el.checked;
+    el.closest('.chk').classList.toggle('done',el.checked);
+    save();
+  });
+});
+
+// Rollen mischen
+$('#bShuffleRoles').onclick=()=>{
+  const h=cur();
+  const names=[h.rTime,h.rBuild,h.rText,h.rPitch].map(s=>s.trim()).filter(Boolean);
+  if(names.length<2){msg('Bitte mindestens 2 Namen in die Rollenfelder eintragen.');return}
+  for(let i=names.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[names[i],names[j]]=[names[j],names[i]]}
+  const keys=['rTime','rBuild','rText','rPitch'];
+  keys.forEach((k,i)=>{h[k]=names[i]||''});
+  loadHack(S.cur);
+  msg('Rollen neu gemischt.');
+};
+
+// Reset
+$('#bReset').onclick=()=>{
+  if(!confirm(`Alle Felder für ${HACK_META[S.cur].short} wirklich leeren?`))return;
+  S.hacks[S.cur]=emptyHack();
+  loadHack(S.cur);
+  msg('Felder geleert.');
+};
+
+// Phasen-Timer
+let phaseSec=20*60,timerInt=null;
+const fmtTime=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+function renderTimer(){$('#countdown').textContent=fmtTime(phaseSec)}
+
+document.querySelectorAll('.phase').forEach(p=>{
+  p.onclick=()=>{
+    clearInterval(timerInt);timerInt=null;$('#bTimerToggle').textContent='Timer starten';
+    document.querySelectorAll('.phase').forEach(x=>x.classList.remove('active'));
+    p.classList.add('active');
+    phaseSec=(+p.dataset.min)*60;
+    $('#phaseLabel').textContent=p.dataset.title;
+    renderTimer();
+  };
+});
+
+$('#bTimerToggle').onclick=()=>{
+  if(timerInt){
+    clearInterval(timerInt);timerInt=null;$('#bTimerToggle').textContent='Timer fortsetzen';
+  }else{
+    $('#bTimerToggle').textContent='Pause';
+    timerInt=setInterval(()=>{
+      if(phaseSec>0){phaseSec--;renderTimer()}
+      else{clearInterval(timerInt);timerInt=null;$('#bTimerToggle').textContent='Phase beendet'}
+    },1000);
+  }
+};
+$('#bTimerReset').onclick=()=>{
+  const act=document.querySelector('.phase.active');
+  if(act)act.click();
+};
+
+// 5-Minuten Entscheidungs-Timer
+let decSec=300,decInt=null;
+$('#bDecStart').onclick=()=>{
+  if(decInt){clearInterval(decInt);decInt=null;decSec=300;$('#decClock').textContent='05:00';$('#bDecStart').textContent='5 Min.';return}
+  decSec=300;$('#bDecStart').textContent='Stop';
+  decInt=setInterval(()=>{
+    if(decSec>0){decSec--;$('#decClock').textContent=fmtTime(decSec)}
+    else{clearInterval(decInt);decInt=null;$('#bDecStart').textContent='Fertig!'}
+  },1000);
+};
+
+// Echtzeit-Uhr
+setInterval(()=>{
+  const now=new Date();
+  $('#realClock').textContent='Aktuell: '+now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Uhr';
+},1000);
+
+// Export
+function dl(name,content,type){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type}));
+  a.download=name;document.body.appendChild(a);a.click();a.remove();
+}
+
+$('#bExpMd').onclick=()=>{
+  const m=HACK_META[S.cur],h=cur();
+  const md=[
+    `# ${m.label}`,
+    `**Themenbereich & Titel:** ${h.topic||'—'}`,
+    ``,
+    `## 1. Ausgangslage / Problemstellung`,
+    h.problem||'—',
+    ``,
+    `## 2. Zielgruppe & konkreter Nutzen`,
+    h.target||'—',
+    ``,
+    `## 3. Tages-Prototyp (Ergebnis)`,
+    h.prototype||'—',
+    ``,
+    `## 4. Gesammelte Bausteine & Inhalte`,
+    h.notes||'—',
+    ``,
+    `## 5. Team-Rollen`,
+    `- Zeit & Fokus: ${h.rTime||'—'}`,
+    `- Prototyp / Tools: ${h.rBuild||'—'}`,
+    `- Text & Struktur: ${h.rText||'—'}`,
+    `- Showcase / Pitch: ${h.rPitch||'—'}`,
+    ``,
+    `## 6. Themen-Parkplatz`,
+    h.parking||'—',
+    ``,
+    `## 7. Übergabe-Notiz`,
+    h.handover||'—'
+  ].join('\n');
+  dl(`${m.short.toLowerCase().replace(/\s+/g,'-')}-ergebnis.md`,md,'text/markdown;charset=utf-8');
+  msg('Markdown-Dokumentation gespeichert.');
+};
+
+$('#bExpJson').onclick=()=>{
+  dl(`hackathon-cockpit-backup-${HACK_META[S.cur].short.toLowerCase().replace(/\s+/g,'-')}.json`,JSON.stringify(S,null,2),'application/json');
+  msg('JSON-Backup gespeichert.');
+};
+
+loadHack(0);
+</script>
+</body>
+</html>
