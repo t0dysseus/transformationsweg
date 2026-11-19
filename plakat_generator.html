@@ -46,8 +46,7 @@ details summary{cursor:pointer;font-size:13px;color:var(--mut)}
     <div class="card"><h2>Element</h2><div class="chips" id="chips"></div><div id="fields"></div></div>
     <div class="card"><h2>Gestaltung</h2>
       <div class="row"><label style="font-size:12px;color:var(--mut)">Titelschrift <select id="fT"><option value="Archivo Black">Archivo Black</option><option value="Arial">Arial Fett</option></select></label>
-      <label style="font-size:12px;color:var(--mut)">Textschrift <select id="fB"><option value="Arial">Arial Fett</option><option value="Archivo Black">Archivo Black</option></select></label></div>
-      <div class="row"><label><input type="checkbox" id="shd"> Textschatten beim Anmeldetext</label></div>
+      <label style="font-size:12px;color:var(--mut)">Textschrift <select id="fB"><option value="Arial">Arial</option><option value="Archivo Black">Archivo Black</option></select></label></div>
       <details style="margin-top:8px"><summary>Farben (für die gewählte Variante)</summary><div class="cols" id="cols" style="margin-top:8px"></div></details>
     </div>
     <div class="card"><h2>PDF</h2>
@@ -62,77 +61,114 @@ details summary{cursor:pointer;font-size:13px;color:var(--mut)}
 <script>
 const $=s=>document.querySelector(s);
 const TH={
- light:{bg:'#ffffff',title:'#2b6b9b',badgeBg:'#2b6b9b',badgeTx:'#ffffff',pill:'#4a8bbf',pillTx:'#0b0b4f',claimBg:'#4a8bbf',claimTx:'#ffffff',base:'#000000',acc:'#2b6b9b',footBg:'#4a8bbf',footTx:'#ffffff',r1:'#dbe6f4',r2:'#9fbdd0',r3:'#c9d8e8'},
- dark:{bg:'#333333',title:'#ffffff',badgeBg:'#ffffff',badgeTx:'#2b6b9b',pill:'#4a8bbf',pillTx:'#ffffff',claimBg:'#ffffff',claimTx:'#4a8bbf',base:'#2b6b9b',acc:'#ffffff',footBg:'#3a6f9a',footTx:'#1b3550',r1:'#e2dfd6',r2:'#8d8d8d',r3:'#cfcdc4'}};
-const CL={bg:'Hintergrund',title:'Titel',badgeBg:'Label Fläche',badgeTx:'Label Text',pill:'Termine Fläche',pillTx:'Termine Text',claimBg:'Claim Fläche',claimTx:'Claim Text',base:'Anmeldetext',acc:'Anmeldetext Hervorhebung',footBg:'Fußzeile Fläche',footTx:'Fußzeile Text',r1:'Band hell',r2:'Band dunkel',r3:'Band mittel'};
-const DEF=()=>({theme:'light',fT:'Archivo Black',fB:'Arial',shadow:true,fmt:'a4',both:false,sel:'title',
- tx:{title:'Hackathon',badge:'CJD',dates:'1.12.2026\n5.12.2026\n9.12.2026',claim:'Dein CJD braucht\ndeine Ideen',cta:'Melde dich jetzt bei *Moodle* an\nund erfahre mehr über die\n*Themenauswahl*.',foot:'Ein Projekt der Räume für jeden Group'},
- pos:{title:{x:55,y:11,s:1},dates:{x:50,y:35,s:1},claim:{x:50,y:55,s:1},cta:{x:50,y:82,s:1},foot:{x:50,y:98,s:1},rib1:{x:0,y:0,s:1},rib2:{x:0,y:0,s:1}},
+ light:{bg:'#ffffff',title:'#000000',sub:'#000000',dates:'#000000',claim:'#000000',base:'#000000',band:'#d4ecfc',footTx:'#000000',rib:'#111111',ribB:'#1ea0f0',logo:'#8fa3b5'},
+ dark:{bg:'#15151a',title:'#ffffff',sub:'#ffffff',dates:'#ffffff',claim:'#ffffff',base:'#ffffff',band:'#16314a',footTx:'#ffffff',rib:'#e6e6ee',ribB:'#3cb0ff',logo:'#9fb8cc'}};
+const CL={bg:'Hintergrund',title:'Titel',sub:'Untertitel',dates:'Termine',claim:'Claim',base:'Anmeldetext & Logo-Text',band:'Fußzeile Fläche',footTx:'Fußzeile Text',rib:'Bänder schwarz',ribB:'Band blau',logo:'Logo-Raster'};
+const DEF=()=>({theme:'light',fT:'Archivo Black',fB:'Arial',fmt:'a4',both:false,sel:'title',
+ tx:{title:'Hackathon',sub:'CJD Sickingen Straße',dates:'1.12.26\n5.12.26\n9.12.26',claim:'Dein CJD braucht deine Ideen!',cta:'Melde dich jetzt bei *Moodle* an und\nerfahre mehr über die *Themenauswahl*.',logo:'Räume\nfür Jeden',foot:'In Zusammenarbeit mit dem Masterstudiengang Transformation Design & Print der BHT'},
+ pos:{title:{x:55.6,y:6,s:1},dates:{x:3.2,y:69.2,s:1},claim:{x:55.8,y:61.8,s:1},cta:{x:55.6,y:66.7,s:1},logo:{x:7.9,y:92.5,s:1},foot:{x:1.2,y:99.1,s:1},
+  rib1:{x:0,y:0,s:1},rib2:{x:0,y:0,s:1},rib3:{x:0,y:0,s:1},rib4:{x:0,y:0,s:1}},
  th:JSON.parse(JSON.stringify(TH))});
 let S=DEF();
-try{const j=JSON.parse(localStorage.getItem('plakat-gen')||'null');if(j){for(const k of['tx','pos','th'])for(const a in j[k]||{})S[k][a]=Object.assign(S[k][a]||{},j[k][a]),typeof j[k][a]!=='object'&&(S[k][a]=j[k][a]);for(const k of['theme','fT','fB','shadow','fmt','both'])if(j[k]!==undefined)S[k]=j[k]}}catch(e){}
+try{const j=JSON.parse(localStorage.getItem('plakat-gen2')||'null');if(j){for(const k of['tx','pos','th'])for(const a in j[k]||{})if(S[k][a]!==undefined)S[k][a]=typeof j[k][a]==='object'?Object.assign(S[k][a],j[k][a]):j[k][a];for(const k of['theme','fT','fB','fmt','both'])if(j[k]!==undefined)S[k]=j[k]}}catch(e){}
 const imgs={};
-const save=()=>{try{const{sel,...r}=S;localStorage.setItem('plakat-gen',JSON.stringify(r))}catch(e){}};
-const hexA=(h,a)=>{const n=parseInt(h.slice(1),16);return`rgba(${n>>16},${n>>8&255},${n&255},${a})`};
+const save=()=>{try{const{sel,...r}=S;localStorage.setItem('plakat-gen2',JSON.stringify(r))}catch(e){}};
 const fam=f=>f==='Arial'?'Arial,Helvetica,sans-serif':'"Archivo Black","Arial Black",Impact,sans-serif';
-const F=(f,px)=>(f==='Arial'?'700 ':'400 ')+px+'px '+fam(f);
+const F=(f,px,b)=>(f==='Arial'?(b?'700 ':'400 '):'400 ')+px+'px '+fam(f);
 const lines=t=>String(t).split('\n').map(s=>s.trim()).filter(Boolean);
+
+// ---------- Drahtgitter-Bänder (Standardbänder), Maße im Plakatraster 810 x 1145 ----------
+function spline(P,N,closed){
+ const m=P.length,out=[],g=i=>closed?P[(i%m+m)%m]:P[Math.max(0,Math.min(m-1,i))],segs=closed?m:m-1;
+ for(let k=0;k<N;k++){
+  const t=(closed?k/N:k/(N-1))*segs,i=Math.min(Math.floor(t),segs-1),f=t-i,p0=g(i-1),p1=g(i),p2=g(i+1),p3=g(i+2),f2=f*f,f3=f2*f;
+  out.push([0,1].map(d=>.5*(2*p1[d]+(-p0[d]+p2[d])*f+(2*p0[d]-5*p1[d]+4*p2[d]-p3[d])*f2+(-p0[d]+3*p1[d]-3*p2[d]+p3[d])*f3)));
+ }
+ return out;
+}
+const wAt=(w,t)=>{if(t<=w[0][0])return w[0][1];for(let i=1;i<w.length;i++)if(t<=w[i][0]){const q=(t-w[i-1][0])/(w[i][0]-w[i-1][0]),e=(1-Math.cos(Math.PI*q))/2;return w[i-1][1]+(w[i][1]-w[i-1][1])*e}return w[w.length-1][1]};
+const ss=x=>{x=Math.min(1,Math.max(0,x+.5));return x*x*(3-2*x)};
+function ribbon(c,d,col,lw){
+ const cl=!!d.closed,N=cl?420:520,C=spline(d.pts,N,cl),n=C.length,NV=d.nv||8,dl=d.dl||.07;
+ const Nm=[],Hh=[],L=[0];
+ for(let i=0;i<n;i++){
+  const a=C[cl?(i+n-1)%n:Math.max(i-1,0)],b=C[cl?(i+1)%n:Math.min(i+1,n-1)],tx=b[0]-a[0],ty=b[1]-a[1],m=Math.hypot(tx,ty)||1;
+  Nm.push([-ty/m,tx/m]);
+  const t=cl?i/n:i/(n-1),ph=Math.PI*d.tw.reduce((s,ti)=>s+ss((t-ti)/dl),0);
+  Hh.push(wAt(d.w,t)*Math.cos(ph));
+  if(i)L.push(L[i-1]+Math.hypot(C[i][0]-C[i-1][0],C[i][1]-C[i-1][1]));
+ }
+ const E=(i,v)=>[C[i][0]+Nm[i][0]*Hh[i]*v,C[i][1]+Nm[i][1]*Hh[i]*v];
+ const cell=d.cell||7.5,st=[0];let next=cell;
+ for(let i=1;i<n;i++)if(L[i]>=next){st.push(i);next+=cell}
+ if(st[st.length-1]!==n-1)st.push(n-1);
+ c.save();c.strokeStyle=col;c.lineJoin='round';c.lineCap='round';
+ c.beginPath();
+ for(const i of st){const a=E(i,-1),b=E(i,1);c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1])}
+ for(let j=1;j<NV;j++){const v=-1+2*j/NV;for(let i=0;i<n;i++){const e=E(i,v);i?c.lineTo(e[0],e[1]):c.moveTo(e[0],e[1])}}
+ for(let s=0;s<st.length-1;s++)for(let j=0;j<NV;j++){const a=E(st[s],-1+2*j/NV),b=E(st[s+1],-1+2*(j+1)/NV);c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1])}
+ c.lineWidth=lw*.7;c.globalAlpha=.85;c.stroke();
+ c.beginPath();
+ for(const v of[-1,1])for(let i=0;i<n;i++){const e=E(i,v);i?c.lineTo(e[0],e[1]):c.moveTo(e[0],e[1])}
+ c.lineWidth=lw*2.2;c.globalAlpha=1;c.stroke();
+ c.restore();
+}
+// vier Standardbänder: schwarz (1–3) und blau (4); Bild-Upload ersetzt jedes einzelne
+const RIB=[
+ {pts:[[-30,95],[40,50],[95,28],[125,80],[112,190],[150,270],[230,340],[330,420],[420,495],[480,560],[505,600],[470,640],[390,650]],w:[[0,28],[.3,36],[.55,24],[.75,46],[1,32]],tw:[.4,.9]},
+ {pts:[[-30,525],[40,470],[103,432],[125,500],[160,585],[230,632],[330,645],[450,625],[600,598],[720,550],[850,490]],w:[[0,40],[.35,26],[.6,22],[1,50]],tw:[.2,.78]},
+ {pts:[[320,610],[300,670],[318,740],[370,830],[440,925],[525,1020],[620,1100],[740,1170],[830,1230]],w:[[0,34],[.5,40],[1,44]],tw:[.18]},
+ {blue:1,pts:[[300,55],[395,95],[415,150],[340,185],[280,240],[275,330],[310,400],[380,430],[440,420],[455,360],[420,310],[460,265],[540,270],[590,320],[570,385],[600,430],[660,450],[640,510],[570,540],[490,560]],w:[[0,24],[.5,28],[1,26]],tw:[.2,.42,.65,.88],cell:6}
+];
+RIB.forEach(d=>{const xs=d.pts.map(p=>p[0]),ys=d.pts.map(p=>p[1]);d.c=[(Math.min(...xs)+Math.max(...xs))/2,(Math.min(...ys)+Math.max(...ys))/2]});
+const LOGO={closed:true,pts:Array.from({length:12},(_,k)=>{const a=-Math.PI/2+k/12*Math.PI*2,r=38+7*Math.cos(3*(a+Math.PI/2));return[47+r*Math.cos(a),47+r*Math.sin(a)]}),w:[[0,9],[1,9]],tw:[.17,.5,.83],dl:.1,nv:5,cell:5};
 
 function draw(c,W,H,tn,sel){
  const T=S.th[tn],u=W/810,B={};
- const lg=(x0,y0,x1,y1,a,b)=>{const g=c.createLinearGradient(x0,y0,x1,y1);g.addColorStop(0,a);g.addColorStop(1,b);return g};
- const P=(d,f)=>{c.fillStyle=f;c.fill(new Path2D(d))};
- const rr=(x,y,w,h,r)=>{r=Math.min(r,w/2,h/2);c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()};
- const pill=(x,y,w,h,col)=>{c.beginPath();rr(x,y,w,h,h/2);c.fillStyle=col;c.fill()};
  const txt=(s,x,y,col,fs)=>{c.textAlign='center';c.textBaseline='middle';c.fillStyle=col;c.fillText(s,x,y+fs*.04)};
- c.save();c.fillStyle=T.bg;c.fillRect(0,0,W,H);c.beginPath();c.rect(0,0,W,H);c.clip();
- for(const k of['rib1','rib2']){
-  const p=S.pos[k],im=imgs[k];c.save();c.translate(p.x/100*W,p.y/100*H);c.scale(u*p.s,u*p.s);
-  if(im)c.drawImage(im,0,0,405,405*im.height/im.width);
-  else if(k==='rib1'){
-   P('M0,0C60,6 112,50 132,102C138,160 110,215 0,300Z',lg(0,0,132,0,T.r1,T.r3));
-   P('M0,300C110,215 138,160 132,102C140,150 146,200 140,260C125,320 70,380 0,430Z',lg(0,300,140,300,hexA(T.r1,.8),hexA(T.r3,.9)));
-   P('M132,102C150,170 176,255 190,332C170,420 90,520 0,592L0,430C70,380 125,320 140,260C146,200 140,150 132,102Z',lg(0,0,190,0,T.r3,T.r2));
-  }else{
-   P('M698,545C600,640 520,740 498,815C485,870 505,930 540,990C580,1060 620,1110 660,1144L809,1144L809,700L698,702Z',lg(500,800,809,1100,hexA(T.r3,.95),hexA(T.r1,0)));
-   P('M809,477C760,478 715,495 698,545C692,590 694,640 698,702L809,705Z',lg(694,0,809,0,T.r2,T.r3));
-  }
+ c.save();c.fillStyle=T.bg;c.fillRect(0,0,W,H);
+ c.fillStyle=T.band;c.fillRect(0,H*.866,W,H*.134);
+ c.beginPath();c.rect(0,0,W,H);c.clip();
+ RIB.forEach((d,i)=>{
+  const k='rib'+(i+1),p=S.pos[k],im=imgs[k];c.save();
+  if(im){c.translate(p.x/100*W,p.y/100*H);c.scale(u*p.s,u*p.s);c.drawImage(im,0,0,810,810*im.height/im.width)}
+  else{c.translate(p.x/100*W+d.c[0]*u,p.y/100*H+d.c[1]*u);c.scale(u*p.s,u*p.s);c.translate(-d.c[0],-d.c[1]);ribbon(c,d,d.blue?T.ribB:T.rib,.8)}
   c.restore();
- }
+ });
  c.restore();
- {const p=S.pos.title,tw=555*u*p.s,cx=p.x/100*W,cy=p.y/100*H,s=S.tx.title||' ',ls=-.025;
-  c.font=F(S.fT,100);const w100=[...s].reduce((a,ch)=>a+c.measureText(ch).width,0)+ls*100*(s.length-1),fs=100*tw/w100;
-  c.font=F(S.fT,fs);c.textAlign='left';c.textBaseline='alphabetic';c.fillStyle=T.title;
-  const capH=.72*fs,base=cy+capH/2;let x=cx-tw/2;for(const ch of s){c.fillText(ch,x,base);x+=c.measureText(ch).width+ls*fs}
-  let y1=base+fs*.05;
-  if(S.tx.badge){const bh=tw*.09,bf=bh*.56;c.font=F(S.fT,bf);const m=c.measureText(S.tx.badge).width,bw=Math.max(bh*1.2,m+bh*.35),bx=cx+tw/2-bw,by=base+3*u*p.s;
-   c.fillStyle=T.badgeBg;c.fillRect(bx,by,bw,bh);txt(S.tx.badge,bx+bw/2,by+bh/2,T.badgeTx,bf);y1=by+bh}
-  B.title=[cx-tw/2,base-capH,cx+tw/2,y1]}
- {const p=S.pos.dates,L=lines(S.tx.dates),s=u*p.s,h=60*s,pit=91*s,fs=33*s,cx=p.x/100*W,cy=p.y/100*H;
-  if(L.length){c.font=F(S.fB,fs);const w=Math.max(205*s,...L.map(l=>c.measureText(l).width))+(L.length?56*s:0),ww=Math.max(205*s,w);
-   L.forEach((l,i)=>{const y=cy+(i-(L.length-1)/2)*pit;pill(cx-ww/2,y-h/2,ww,h,T.pill);c.font=F(S.fB,fs);txt(l,cx,y,T.pillTx,fs)});
-   B.dates=[cx-ww/2,cy-(L.length-1)/2*pit-h/2,cx+ww/2,cy+(L.length-1)/2*pit+h/2]}}
- {const p=S.pos.claim,L=lines(S.tx.claim).map(l=>l.toUpperCase()),s=u*p.s,fs=32*s,lh=34*s,cx=p.x/100*W,cy=p.y/100*H;
-  if(L.length){c.font=F(S.fB,fs);const n=L.length,ct=L.map((_,i)=>cy+(i-(n-1)/2)*lh),bw=L.map(l=>c.measureText(l).width+54*s),top=ct[0]-28*s,bot=ct[n-1]+33*s;
-   const ys=i=>i===0?top:ct[i],ye=i=>i===n-1?bot:ct[i+1];
-   c.fillStyle=T.claimBg;
-   for(let i=0;i<n;i++){c.beginPath();rr(cx-bw[i]/2,ys(i),bw[i],ye(i)-ys(i),31*s);c.fill()}
-   for(let i=0;i<n-1;i++){const yj=ct[i+1],lo=bw[i+1]<bw[i],bn=Math.min(bw[i],bw[i+1]),d=Math.abs(bw[i]-bw[i+1])/2,r=Math.min(16*s,d),xl=cx-bn/2,xr=cx+bn/2;
-    if(r<1)continue;c.beginPath();
-    if(lo){c.moveTo(xl-r,yj);c.lineTo(xl,yj);c.lineTo(xl,yj+r);c.arc(xl-r,yj+r,r,0,-Math.PI/2,true);c.moveTo(xr+r,yj);c.lineTo(xr,yj);c.lineTo(xr,yj+r);c.arc(xr+r,yj+r,r,Math.PI,1.5*Math.PI,false)}
-    else{c.moveTo(xl-r,yj);c.lineTo(xl,yj);c.lineTo(xl,yj-r);c.arc(xl-r,yj-r,r,0,Math.PI/2,false);c.moveTo(xr+r,yj);c.lineTo(xr,yj);c.lineTo(xr,yj-r);c.arc(xr+r,yj-r,r,Math.PI,Math.PI/2,true)}
-    c.fill()}
-   c.font=F(S.fB,fs);L.forEach((l,i)=>txt(l,cx,ct[i],T.claimTx,fs));
-   const mw=Math.max(...bw);B.claim=[cx-mw/2,top,cx+mw/2,bot]}}
- {const p=S.pos.cta,L=String(S.tx.cta).split('\n').filter(l=>l.trim()),s=u*p.s,fs=33*s,lh=33.5*s,cx=p.x/100*W,cy=p.y/100*H;
-  if(L.length){c.font=F(S.fB,fs);c.textAlign='left';c.textBaseline='middle';let mw=0;
-   if(S.shadow){c.shadowColor=hexA(T.base,.55);c.shadowBlur=fs*.18}
-   L.forEach((l,i)=>{const seg=l.trim().split('*').map((t,j)=>({t,a:j%2===1})).filter(o=>o.t),w=seg.reduce((a,o)=>a+c.measureText(o.t).width,0),y=cy+(i-(L.length-1)/2)*lh;mw=Math.max(mw,w);
-    let x=cx-w/2;seg.forEach(o=>{c.fillStyle=o.a?T.acc:T.base;c.fillText(o.t,x,y+fs*.04);x+=c.measureText(o.t).width})});
-   c.shadowColor='transparent';c.shadowBlur=0;
-   B.cta=[cx-mw/2,cy-L.length*lh/2,cx+mw/2,cy+L.length*lh/2]}}
- {const p=S.pos.foot,s=u*p.s,fs=14*s,cx=p.x/100*W,cy=p.y/100*H,t=(S.tx.foot||'').toUpperCase();
-  if(t){c.font=F(S.fB,fs);const w=c.measureText(t).width+24*s,h=24*s;pill(cx-w/2,cy-h/2,w,h,T.footBg);c.font=F(S.fB,fs);txt(t,cx,cy,T.footTx,fs);B.foot=[cx-w/2,cy-h/2,cx+w/2,cy+h/2]}}
+ // Titel + Untertitel (linksbündig, y = Grundlinie des Titels)
+ {const p=S.pos.title,s=u*p.s,cx=p.x/100*W,by=p.y/100*H,tx=S.tx.title||' ',ls=-.02;
+  c.font=F(S.fT,100,true);const w100=[...tx].reduce((a,ch)=>a+c.measureText(ch).width,0)+ls*100*(tx.length-1),tw=354*s,fs=100*tw/Math.max(w100,1);
+  c.font=F(S.fT,fs,true);c.textAlign='left';c.textBaseline='alphabetic';c.fillStyle=T.title;
+  let x=cx;for(const ch of tx){c.fillText(ch,x,by);x+=c.measureText(ch).width+ls*fs}
+  let bot=by+fs*.05;
+  if(S.tx.sub){const f2=27*s;c.font=F(S.fB,f2,false);c.textAlign='left';c.textBaseline='alphabetic';c.fillStyle=T.sub;c.fillText(S.tx.sub,cx,by+49*s);bot=by+49*s+f2*.25}
+  B.title=[cx,by-.72*fs,cx+Math.max(tw,0),bot]}
+ // Termine
+ {const p=S.pos.dates,Ls=lines(S.tx.dates),s=u*p.s,fs=62*s,pit=71*s,cx=p.x/100*W,cy=p.y/100*H;
+  if(Ls.length){c.font=F(S.fT,fs,true);c.textAlign='left';c.textBaseline='middle';c.fillStyle=T.dates;let mw=0;
+   Ls.forEach((l,i)=>{c.fillText(l,cx,cy+(i-(Ls.length-1)/2)*pit+fs*.04);mw=Math.max(mw,c.measureText(l).width)});
+   B.dates=[cx,cy-(Ls.length-1)/2*pit-fs*.55,cx+mw,cy+(Ls.length-1)/2*pit+fs*.55]}}
+ // Claim
+ {const p=S.pos.claim,Ls=lines(S.tx.claim),s=u*p.s,fs=22*s,lh=27*s,cx=p.x/100*W,cy=p.y/100*H;
+  if(Ls.length){c.font=F(S.fB,fs,true);c.textAlign='left';c.textBaseline='middle';c.fillStyle=T.claim;let mw=0;
+   Ls.forEach((l,i)=>{c.fillText(l,cx,cy+(i-(Ls.length-1)/2)*lh+fs*.04);mw=Math.max(mw,c.measureText(l).width)});
+   B.claim=[cx,cy-Ls.length*lh/2,cx+mw,cy+Ls.length*lh/2]}}
+ // Anmeldetext: *Wort* wird fett
+ {const p=S.pos.cta,Ls=String(S.tx.cta).split('\n').filter(l=>l.trim()),s=u*p.s,fs=17*s,lh=20.5*s,cx=p.x/100*W,cy=p.y/100*H;
+  if(Ls.length){c.textAlign='left';c.textBaseline='middle';c.fillStyle=T.base;let mw=0;
+   Ls.forEach((l,i)=>{const y=cy+(i-(Ls.length-1)/2)*lh+fs*.04;let x=cx;
+    l.trim().split('*').forEach((t,j)=>{if(!t)return;c.font=F(S.fB,fs,j%2===1);c.fillText(t,x,y);x+=c.measureText(t).width});mw=Math.max(mw,x-cx)});
+   B.cta=[cx,cy-Ls.length*lh/2,cx+mw,cy+Ls.length*lh/2]}}
+ // Logo
+ {const p=S.pos.logo,s=u*p.s,cx=p.x/100*W,cy=p.y/100*H,sz=94*s,im=imgs.logo;
+  if(im){const iw=sz,ih=sz*im.height/im.width;c.drawImage(im,cx-iw/2,cy-ih/2,iw,ih);B.logo=[cx-iw/2,cy-ih/2,cx+iw/2,cy+ih/2]}
+  else{c.save();c.translate(cx,cy);c.scale(s,s);c.translate(-47,-47);ribbon(c,LOGO,T.logo,.55);c.restore();
+   const Ls=lines(S.tx.logo);if(Ls.length){const fs=9.5*s;c.font=F(S.fB,fs,true);Ls.forEach((l,i)=>txt(l,cx,cy+(i-(Ls.length-1)/2)*fs*1.25,T.base,fs))}
+   B.logo=[cx-sz/2,cy-sz/2,cx+sz/2,cy+sz/2]}}
+ // Fußzeile
+ {const p=S.pos.foot,s=u*p.s,fs=9.5*s,cx=p.x/100*W,cy=p.y/100*H,t=S.tx.foot||'';
+  if(t){c.font=F(S.fB,fs,false);c.textAlign='left';c.textBaseline='middle';c.fillStyle=T.footTx;c.fillText(t,cx,cy+fs*.04);const w=c.measureText(t).width;B.foot=[cx,cy-fs*.7,cx+w,cy+fs*.7]}}
  if(sel&&B[sel]){const[a,b,d,e]=B[sel],m=8*u;c.save();c.strokeStyle='#e5484d';c.lineWidth=Math.max(1.5,2*u);c.setLineDash([8*u,6*u]);c.strokeRect(a-m,b-m,d-a+2*m,e-b+2*m);c.restore()}
  return B;
 }
@@ -143,36 +179,36 @@ function render(){
  boxes=draw(cv.getContext('2d'),cv.width,cv.height,S.theme,S.sel);save();
 }
 const msg=t=>$('#msg').textContent=t;
-const ELS=[['title','Titel',[['title','Titel',1],['badge','Label (z. B. CJD)',1]]],['dates','Termine',[['dates','Termine, eine pro Zeile',3]]],['claim','Claim',[['claim','Text, Zeilenumbruch = neue Stufe',2]]],['cta','Anmeldetext',[['cta','Text, *Wort* wird hervorgehoben',4]]],['foot','Fußzeile',[['foot','Text',1]]],['rib1','Band 1',[]],['rib2','Band 2',[]]];
+const ELS=[['title','Titel',[['title','Titel',1],['sub','Untertitel',1]]],['dates','Termine',[['dates','Termine, eine pro Zeile',3]]],['claim','Claim',[['claim','Text, Zeilenumbruch = neue Zeile',2]]],['cta','Anmeldetext',[['cta','Text, *Wort* wird fett',3]]],['logo','Logo',[['logo','Text im Logo',2]]],['foot','Fußzeile',[['foot','Text',1]]],['rib1','Band 1',[]],['rib2','Band 2',[]],['rib3','Band 3',[]],['rib4','Band 4 (blau)',[]]];
 function panel(){
  $('#chips').innerHTML='';ELS.forEach(([k,n])=>{const b=document.createElement('button');b.textContent=n;b.className=S.sel===k?'on':'';b.onclick=()=>{S.sel=k;panel();render()};$('#chips').append(b)});
  const el=ELS.find(e=>e[0]===S.sel),box=$('#fields');box.innerHTML='';
  el[2].forEach(([k,l,rows])=>{const lb=document.createElement('label');lb.className='l';lb.textContent=l;const t=rows>1?document.createElement('textarea'):document.createElement('input');if(rows>1)t.rows=rows;else t.type='text';t.value=S.tx[k];t.oninput=()=>{S.tx[k]=t.value;render()};box.append(lb,t)});
- const rib=S.sel[0]==='r',p=S.pos[S.sel];
- [['x','Waagerecht',rib?-80:0,rib?100:100,.1],['y','Senkrecht',rib?-80:0,rib?100:100,.1],['s','Größe',.3,2.5,.01]].forEach(([k,l,mn,mx,st])=>{
+ const rib=S.sel.slice(0,3)==='rib',img=rib||S.sel==='logo',p=S.pos[S.sel];
+ [['x','Waagerecht',rib?-100:0,100,.1],['y','Senkrecht',rib?-100:0,100,.1],['s','Größe',.3,2.5,.01]].forEach(([k,l,mn,mx,st])=>{
   const d=document.createElement('div');d.className='sl';d.innerHTML=`<span>${l}</span><input type="range" min="${mn}" max="${mx}" step="${st}"><output></output>`;
   const i=d.querySelector('input'),o=d.querySelector('output');i.value=p[k];o.textContent=(+p[k]).toFixed(k==='s'?2:1);i.oninput=()=>{p[k]=+i.value;o.textContent=(+i.value).toFixed(k==='s'?2:1);render()};box.append(d)});
- if(rib){const r=document.createElement('div');r.className='row';
-  r.innerHTML=`<label class="fbtn">Eigenes Bild laden<input type="file" accept="image/*" hidden></label><button type="button">Standardband</button>`;
-  r.querySelector('input').onchange=e=>{const f=e.target.files[0];if(!f)return;const im=new Image();im.onload=()=>{imgs[S.sel]=im;S.pos[S.sel]={x:S.sel==='rib1'?0:45,y:S.sel==='rib1'?0:40,s:1};panel();render()};im.src=URL.createObjectURL(f)};
-  r.querySelector('button').onclick=()=>{delete imgs[S.sel];S.pos[S.sel]={x:0,y:0,s:1};panel();render()};box.append(r);
-  const h=document.createElement('div');h.className='hint';h.textContent='Ein eigenes Bild (am besten PNG mit transparentem Hintergrund) ersetzt das Standardband.';box.append(h)}
+ if(img){const r=document.createElement('div');r.className='row';
+  r.innerHTML=`<label class="fbtn">Eigenes Bild laden<input type="file" accept="image/*" hidden></label><button type="button">Standard</button>`;
+  r.querySelector('input').onchange=e=>{const f=e.target.files[0];if(!f)return;const im=new Image();im.onload=()=>{imgs[S.sel]=im;if(rib)S.pos[S.sel]={x:0,y:0,s:1};panel();render()};im.src=URL.createObjectURL(f)};
+  r.querySelector('button').onclick=()=>{delete imgs[S.sel];S.pos[S.sel]=JSON.parse(JSON.stringify(DEF().pos[S.sel]));panel();render()};box.append(r);
+  const h=document.createElement('div');h.className='hint';h.textContent=rib?'Ein eigenes Bild (am besten PNG mit transparentem Hintergrund, Breite = Plakatbreite) ersetzt dieses Band.':'Ein eigenes Logo (am besten PNG mit transparentem Hintergrund) ersetzt das Standardlogo.';box.append(h)}
  else{const h=document.createElement('div');h.className='hint';h.textContent='Du kannst das Element auch direkt in der Vorschau anklicken und ziehen.';box.append(h)}
 }
 function ctl(){
  document.querySelectorAll('#thm button').forEach(b=>b.className=b.dataset.t===S.theme?'on':'');
  $('#cols').innerHTML='';for(const k in CL){const l=document.createElement('label');l.append(CL[k]);const i=document.createElement('input');i.type='color';i.value=S.th[S.theme][k];i.oninput=()=>{S.th[S.theme][k]=i.value;render()};l.append(i);$('#cols').append(l)}
- $('#fT').value=S.fT;$('#fB').value=S.fB;$('#shd').checked=S.shadow;$('#fmt').value=S.fmt;$('#both').checked=S.both;
+ $('#fT').value=S.fT;$('#fB').value=S.fB;$('#fmt').value=S.fmt;$('#both').checked=S.both;
 }
 document.querySelectorAll('#thm button').forEach(b=>b.onclick=()=>{S.theme=b.dataset.t;ctl();render()});
 $('#fT').onchange=e=>{S.fT=e.target.value;render()};$('#fB').onchange=e=>{S.fB=e.target.value;render()};
-$('#shd').onchange=e=>{S.shadow=e.target.checked;render()};$('#fmt').onchange=e=>{S.fmt=e.target.value;save()};$('#both').onchange=e=>{S.both=e.target.checked;save()};
+$('#fmt').onchange=e=>{S.fmt=e.target.value;save()};$('#both').onchange=e=>{S.both=e.target.checked;save()};
 $('#bReset').onclick=()=>{if(!confirm('Alle Eingaben und Positionen zurücksetzen?'))return;S=DEF();for(const k in imgs)delete imgs[k];ctl();panel();render()};
 
 // Ziehen in der Vorschau
 let drag=null;
 const pt=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]};
-cv.addEventListener('pointerdown',e=>{const[fx,fy]=pt(e),px=fx*cv.width,py=fy*cv.height,order=['foot','cta','claim','dates','title'];
+cv.addEventListener('pointerdown',e=>{const[fx,fy]=pt(e),px=fx*cv.width,py=fy*cv.height,order=['foot','logo','cta','claim','dates','title'];
  const k=order.find(k=>boxes[k]&&px>=boxes[k][0]&&px<=boxes[k][2]&&py>=boxes[k][1]&&py<=boxes[k][3]);
  if(!k)return;cv.setPointerCapture(e.pointerId);S.sel=k;const p=S.pos[k];drag={k,dx:p.x-fx*100,dy:p.y-fy*100};panel();render()});
 cv.addEventListener('pointermove',e=>{if(!drag)return;const[fx,fy]=pt(e),p=S.pos[drag.k];p.x=Math.round(Math.min(100,Math.max(0,fx*100+drag.dx))*10)/10;p.y=Math.round(Math.min(100,Math.max(0,fy*100+drag.dy))*10)/10;
@@ -180,7 +216,7 @@ cv.addEventListener('pointermove',e=>{if(!drag)return;const[fx,fy]=pt(e),p=S.pos
 ['pointerup','pointercancel'].forEach(v=>cv.addEventListener(v,()=>{drag=null}));
 
 // Export
-async function fonts(){try{await Promise.all([document.fonts.load('400 40px "Archivo Black"'),document.fonts.load('700 40px Arial')])}catch(e){}}
+async function fonts(){try{await Promise.all([document.fonts.load('400 40px "Archivo Black"'),document.fonts.load('700 40px Arial'),document.fonts.load('400 40px Arial')])}catch(e){}}
 function page(tn){const W={a5:1748,a4:2480,a3:3508}[S.fmt],H=Math.round(W*1.41421),c=document.createElement('canvas');c.width=W;c.height=H;draw(c.getContext('2d'),W,H,tn,null);return c}
 async function saveFile(name,blob){
  let dl=null;try{dl=window.claude&&claude.use?await claude.use('downloads'):null}catch(e){}
