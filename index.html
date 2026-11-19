@@ -65,6 +65,34 @@ html,body{height:100%;margin:0;background:#000;color:var(--ink);font-family:var(
   .c4{left:68vw;top:52vh;width:30vw;height:44vh;--d:495ms;--dc:0ms}
 }
 .card.big{left:3vw!important;top:3vh!important;width:94vw!important;height:94vh!important;z-index:40;--d:0ms;--dc:0ms}
+
+#help{
+  position:fixed;right:20px;bottom:20px;z-index:50;
+  width:min(360px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
+  background:rgba(6,10,16,.95);border:1px solid var(--neon);border-radius:14px;
+  padding:14px 16px;box-sizing:border-box;
+  box-shadow:0 0 26px rgba(44,140,190,.38);
+  color:var(--ink);font:400 13px/1.45 var(--plex);
+  opacity:0;visibility:hidden;pointer-events:none;
+  transform:translateY(10px) scale(.97);
+  transition:opacity .24s cubic-bezier(.22,1,.36,1),transform .28s cubic-bezier(.22,1,.36,1),visibility 0s linear .28s;
+}
+#help.open{
+  opacity:1;visibility:visible;pointer-events:auto;
+  transform:translateY(0) scale(1);
+  transition:opacity .24s cubic-bezier(.22,1,.36,1),transform .28s cubic-bezier(.22,1,.36,1),visibility 0s linear 0s;
+}
+#help h2{margin:0 0 10px;font:700 14px/1.2 var(--atk);letter-spacing:.02em;color:var(--ink);display:flex;align-items:center;justify-content:space-between}
+#help .hint{font:400 11px var(--plex);color:#8ecae6}
+#help ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+#help li{display:flex;align-items:center;gap:10px;padding:4px 0;border-bottom:1px solid rgba(44,140,190,.18)}
+#help li:last-child{border-bottom:0}
+#help kbd{
+  flex:none;display:inline-grid;place-items:center;min-width:26px;height:22px;padding:0 6px;
+  border:1px solid var(--cyan);border-radius:6px;background:#0b0f14;
+  color:var(--cyan);font:600 11px/1 var(--plex);text-transform:uppercase;box-sizing:border-box;
+}
+#help span.desc{flex:1;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -158,6 +186,26 @@ function buildCutBand(){
 
 let twistValue=3,twistStart=3,twistTarget=3,twistElapsed=0;
 let phiPrev=K*Math.PI;
+const bandBaseArr=new Float32Array((U+1)*(V+1)*3);
+const kleinPosArr=new Float32Array((U+1)*(V+1)*3);
+function buildKleinGrid(){
+  for(let i=0;i<=U;i++){
+    const u=i/U,th=u*TAU;
+    for(let j=0;j<=V;j++){
+      const v=(-1+2*j/V)*Math.PI;
+      const r=0.95+0.36*Math.cos(th/2)*Math.sin(v)-0.18*Math.sin(th/2)*Math.sin(2*v);
+      const x=r*Math.cos(th)*0.72;
+      const y=r*Math.sin(th)*0.72;
+      const z=(0.36*Math.sin(th/2)*Math.sin(v)+0.18*Math.cos(th/2)*Math.sin(2*v))*1.45;
+      const o=(i*(V+1)+j)*3;
+      kleinPosArr[o]=x;kleinPosArr[o+1]=y;kleinPosArr[o+2]=z;
+    }
+  }
+}
+buildKleinGrid();
+let kleinTarget=0,kleinMix=0;
+let tremorActive=false, tremorIntensity=0, tremorPhase=0;
+
 function rebuildBand(turns){
   activeCurve=new THREE.CatmullRomCurve3(proxies.map(m=>m.position),true,"centripetal");
   for(let i=0;i<U;i++)C[i].copy(activeCurve.getPoint(i/U));
@@ -179,6 +227,10 @@ function rebuildBand(turns){
       const v=(-1+2*j/V)*HW,o=(i*(V+1)+j)*3;
       posArr[o]=C[i].x+w.x*v;posArr[o+1]=C[i].y+w.y*v;posArr[o+2]=C[i].z+w.z*v;
     }
+  }
+  bandBaseArr.set(posArr);
+  if(kleinMix>0.0001){
+    for(let k=0;k<posArr.length;k++)posArr[k]=bandBaseArr[k]+(kleinPosArr[k]-bandBaseArr[k])*kleinMix;
   }
   g.attributes.position.needsUpdate=true;
   g.computeBoundingSphere();
@@ -240,8 +292,44 @@ const ball=new THREE.Mesh(
   new THREE.SphereGeometry(0.045,24,16),
   new THREE.MeshStandardMaterial({color:0x4cc9f0,emissive:0x12384a,roughness:0.28,metalness:0.12})
 );
+ball.add(new THREE.Mesh(new THREE.SphereGeometry(0.085,20,12),new THREE.MeshBasicMaterial({color:0x4cc9f0,transparent:true,opacity:0.18,depthWrite:false})));
 ball.visible=false;group.add(ball);
-let ballPhase=0;
+let ballPhase=0; // 0 bis 2: die zweite Runde liegt auf der anderen Seite des Bandes
+
+// Punkt auf dem Band: q in [0,laps), off = Abstand über der Fläche, across = Versatz in der Breite
+const _n1=V3(0,0,0),_n2=V3(0,0,0),lastN=V3(0,0,1),tmpT=V3(0,0,0);
+function bandPoint(q,off,across,out,laps=2){
+  q=((q%laps)+laps)%laps;
+  const lap=q>=1?1:0,f=(q-lap)*U,i=Math.min(U-1,Math.floor(f)),a=f-i,sg=lap?-1:1;
+  out.copy(C[i]).lerp(C[i+1],a);
+  _n1.crossVectors(T[i],Ws[i]);_n2.crossVectors(T[i+1],Ws[i+1]);_n1.lerp(_n2,a).normalize();
+  lastN.copy(_n1).multiplyScalar(sg);
+  _n2.copy(Ws[i]).lerp(Ws[i+1],a).normalize();
+  return out.addScaledVector(_n1,off*sg).addScaledVector(_n2,across*sg);
+}
+// Schweif: leuchtende Punkte, die zum Ende hin verblassen (additiv, daher ohne Alpha pro Punkt)
+const glowTex=(()=>{const c=document.createElement("canvas");c.width=c.height=64;const x=c.getContext("2d"),gr=x.createRadialGradient(32,32,0,32,32,32);
+  gr.addColorStop(0,"rgba(255,255,255,1)");gr.addColorStop(.35,"rgba(255,255,255,.55)");gr.addColorStop(1,"rgba(255,255,255,0)");x.fillStyle=gr;x.fillRect(0,0,64,64);return new THREE.CanvasTexture(c);})();
+const trailMat=new THREE.PointsMaterial({map:glowTex,size:11,sizeAttenuation:false,vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false});
+const TRN=30;
+function makeTrail(rgb){
+  const pos=new Float32Array(TRN*3),col=new Float32Array(TRN*3),geo=new THREE.BufferGeometry();
+  geo.setAttribute("position",new THREE.BufferAttribute(pos,3));geo.setAttribute("color",new THREE.BufferAttribute(col,3));
+  const pts=new THREE.Points(geo,trailMat);pts.frustumCulled=false;pts.visible=false;group.add(pts);
+  return{pts,geo,pos,col,rgb};
+}
+function setTrail(tr,sample,strength){
+  for(let k=0;k<TRN;k++){
+    const p=sample(k/(TRN-1)),f=Math.pow(1-k/TRN,1.8)*strength;
+    tr.pos[k*3]=p.x;tr.pos[k*3+1]=p.y;tr.pos[k*3+2]=p.z;
+    tr.col[k*3]=tr.rgb[0]*f;tr.col[k*3+1]=tr.rgb[1]*f;tr.col[k*3+2]=tr.rgb[2]*f;
+  }
+  tr.geo.attributes.position.needsUpdate=true;tr.geo.attributes.color.needsUpdate=true;
+}
+const ballTrail=makeTrail([.30,.79,.94]);
+// Kamerafahrt (k): Blick vom Band aus, zwei Runden, die zweite auf der anderen Seite
+let rideTarget=0,rideMix=0,rideQ=0,rideOn=false;
+const rideCam=new THREE.PerspectiveCamera();
 
 const pulseNodes=LINKS.map(L=>L.t);
 const pulses=Array.from({length:4},(_,i)=>{
@@ -252,6 +340,7 @@ const pulses=Array.from({length:4},(_,i)=>{
   return {group:pulseGroup,halo,core,phase:i/4,energy:[0.95,0.45,0.7,0.3][i]};
 });
 let pulsesActive=false;
+const pulseTrails=pulses.map(()=>makeTrail([.61,.92,1]));
 const nodeFlash=LINKS.map(()=>0);
 const crossedPhase=(from,to,at)=>to>=from?(at>from&&at<=to):(at>from||at<=to);
 function updatePulse(pulse){
@@ -351,21 +440,48 @@ function triggerQ(forceState){
   }
 }
 
+const helpEl=document.getElementById("help");
+let helpOpen=false;
+function toggleHelp(forceState){
+  if(!helpEl)return;
+  helpOpen=(typeof forceState==="boolean")?forceState:!helpOpen;
+  helpEl.classList.toggle("open",helpOpen);
+  helpEl.setAttribute("aria-hidden",String(!helpOpen));
+}
+window.addEventListener("keydown",e=>{
+  const tag=e.target&&e.target.tagName?e.target.tagName.toLowerCase():"";
+  if(tag==="input"||tag==="textarea"||e.target&&e.target.isContentEditable||e.repeat)return;
+  if(e.key&&e.key.toLowerCase()==="e"){
+    e.preventDefault();
+    toggleHelp();
+  }
+},true);
 addEventListener("keydown",e=>{
-  if(e.key==="Escape")cards.forEach(c=>{c.classList.remove("big");c._big.textContent="⤢";});
+  if(e.key==="Escape"){rideTarget=0;cards.forEach(c=>{c.classList.remove("big");c._big.textContent="⤢";});}
   const tag=e.target?.tagName?.toLowerCase();
   if(tag==="input"||tag==="textarea"||e.target?.isContentEditable||e.repeat)return;
   const k=e.key.toLowerCase();
+  if(k==="e"){toggleHelp();return;}
   if(k==="ü"){ball.visible=!ball.visible;if(ball.visible)ballPhase=0;}
   if(k==="ä")cutTarget=cutTarget?0:1;
   if(k==="ö"){cutTarget=0;twistStart=twistValue;twistTarget=twistTarget>1.5?0:3;twistElapsed=0;}
   if(k==="q")triggerQ();
+  if(k==="k"){rideTarget=rideTarget?0:1;if(rideTarget&&qOpen)triggerQ(false);}
+  if(k==="x"){
+    tremorActive=!tremorActive;
+  }
+  if(k==="y"){
+    kleinTarget=kleinTarget?0:1;
+  }
   if(k==="p"){
     pulsesActive=!pulsesActive;
     pulses.forEach(p=>{p.group.visible=pulsesActive;});
     if(pulsesActive){pulses.forEach((p,i)=>{p.phase=i/4;p.energy=[0.95,0.45,0.7,0.3][i];});nodeFlash.fill(0);}
   }
   if(k==="w"){
+    kleinTarget=0;
+    tremorActive=false;
+    tremorIntensity=0;
     proxies.forEach((m,q)=>m.position.copy(startPts[q]));
     phiPrev=twistValue*Math.PI;
     rebuildBand(twistValue);
@@ -437,7 +553,7 @@ canvas.addEventListener("pointercancel",()=>{
 });
 
 document.addEventListener("click",e=>{
-  if(e.target===canvas||e.target.closest(".card, #cords .node"))return;
+  if(e.target===canvas||e.target.closest(".card, #cords .node, #help"))return;
   triggerQ();
 });
 
@@ -457,7 +573,53 @@ addEventListener("resize",layout);layout();
 const tmp=V3(0,0,0);
 (function loop(){requestAnimationFrame(loop);
   const now=performance.now(),dt=Math.min((now-last)/1000,0.1);last=now;
-  if(spin&&dragMode!=="r")ry+=dt*0.24;
+  if(spin&&dragMode!=="r")ry+=dt*0.24*(1-rideMix);
+
+  const prevKlein=kleinMix;
+  kleinMix+=((kleinTarget?1:0)-kleinMix)*Math.min(1,dt*2.4);
+  if(Math.abs(kleinMix-prevKlein)>0.00005){
+    for(let k=0;k<posArr.length;k++){
+      posArr[k]=bandBaseArr[k]+(kleinPosArr[k]-bandBaseArr[k])*kleinMix;
+    }
+    g.attributes.position.needsUpdate=true;
+    g.computeBoundingSphere();
+  }
+
+  const prevTremor=tremorIntensity;
+  if(tremorActive){
+    const rampRate=0.12+0.14*Math.sin(tremorIntensity*Math.PI);
+    tremorIntensity=Math.min(1,tremorIntensity+dt*rampRate);
+  }else{
+    const decayRate=0.09+0.11*Math.sin(tremorIntensity*Math.PI);
+    tremorIntensity=Math.max(0,tremorIntensity-dt*decayRate);
+  }
+  if(prevTremor>0 && tremorIntensity===0){
+    for(let k=0;k<posArr.length;k++)posArr[k]=bandBaseArr[k]+(kleinPosArr[k]-bandBaseArr[k])*kleinMix;
+    g.attributes.position.needsUpdate=true;
+    g.computeBoundingSphere();
+  }
+  tremorPhase+=dt*(12+tremorIntensity*28);
+
+  if(tremorIntensity>0.0005){
+    const baseSource=(kleinMix>0.0001)?null:bandBaseArr;
+    for(let i=0;i<=U;i++){
+      const u=i/U;
+      const wave=Math.sin(u*TAU*5-tremorPhase)*0.016*tremorIntensity;
+      const jitter=Math.sin(u*97+tremorPhase*2.7)*Math.cos(u*43-tremorPhase*1.9)*0.014*tremorIntensity;
+      const disp=wave+jitter;
+      for(let j=0;j<=V;j++){
+        const o=(i*(V+1)+j)*3;
+        const bx=baseSource?baseSource[o]:(bandBaseArr[o]+(kleinPosArr[o]-bandBaseArr[o])*kleinMix);
+        const by=baseSource?baseSource[o+1]:(bandBaseArr[o+1]+(kleinPosArr[o+1]-bandBaseArr[o+1])*kleinMix);
+        const bz=baseSource?baseSource[o+2]:(bandBaseArr[o+2]+(kleinPosArr[o+2]-bandBaseArr[o+2])*kleinMix);
+        posArr[o]=bx+Ws[i].x*disp+T[i].x*(disp*0.35);
+        posArr[o+1]=by+Ws[i].y*disp+T[i].y*(disp*0.35);
+        posArr[o+2]=bz+Ws[i].z*disp+T[i].z*(disp*0.35);
+      }
+    }
+    g.attributes.position.needsUpdate=true;
+    g.computeBoundingSphere();
+  }
 
   cutMix+=((cutTarget?1:0)-cutMix)*Math.min(1,dt*2.2);
   cutMaterial.opacity=cutMix*0.85;
@@ -471,12 +633,12 @@ const tmp=V3(0,0,0);
   occ.visible=cutMix<0.5;
   cutBand.visible=cutMix>0.01;
 
+  ballTrail.pts.visible=ball.visible&&rideMix<0.5;
+  pulseTrails.forEach(t=>{t.pts.visible=pulsesActive&&rideMix<0.5;});
   if(ball.visible){
-    ballPhase=(ballPhase+dt*0.12)%1;
-    const f=ballPhase*U,i=Math.floor(f),a=f-i;
-    const p=C[i].clone().lerp(C[i+1],a);
-    const w=Ws[i].clone().lerp(Ws[i+1],a).normalize();
-    ball.position.copy(p).addScaledVector(w,HW*0.72);
+    ballPhase=(ballPhase+dt*0.12)%2;
+    bandPoint(ballPhase,0.052,0,ball.position);
+    setTrail(ballTrail,sv=>bandPoint(ballPhase-sv*0.07,0.052,0,tmpT),1);
   }
 
   if(pulsesActive){
@@ -490,10 +652,10 @@ const tmp=V3(0,0,0);
           const receiver=pulses[(pi+1)%pulses.length];
           receiver.energy=Math.min(1.4,receiver.energy+transfer);
           nodeFlash[ni]=1;
-          playNodeSound(ni,transfer*6);
         }
       });
       updatePulse(pulse);
+      setTrail(pulseTrails[pi],sv=>bandPoint(pulse.phase-sv*0.05,0,HW*0.62,tmpT,1),0.35+Math.min(1.2,pulse.energy)*0.6);
     });
   }
 
@@ -512,6 +674,19 @@ const tmp=V3(0,0,0);
   group.rotation.set(rx,ry,0);
   camera.position.set(0,0,fitDist*zf);camera.lookAt(0,0,0);camera.updateMatrixWorld();
   group.updateMatrixWorld(true);
+  if(rideTarget)rideQ=(rideQ+dt*0.04)%2;
+  rideMix+=((rideTarget?1:0)-rideMix)*(1-Math.exp(-dt*2.2));
+  if(rideMix>0.002){
+    const m=rideMix*rideMix*(3-2*rideMix),q0=camera.quaternion.clone(),p0=camera.position.clone();
+    const rp=bandPoint(rideQ-0.012,0.07,0,V3(0,0,0)),up=lastN.clone();
+    const rl=bandPoint(rideQ+0.025,0.025,0,V3(0,0,0));
+    group.localToWorld(rp);group.localToWorld(rl);up.transformDirection(group.matrixWorld);
+    rideCam.position.copy(rp);rideCam.up.copy(up);rideCam.lookAt(rl);
+    camera.position.lerpVectors(p0,rp,m);
+    camera.quaternion.copy(q0).slerp(rideCam.quaternion,m);
+    camera.fov=45+27*m;camera.near=0.02;camera.updateProjectionMatrix();camera.updateMatrixWorld();
+    rideOn=true;
+  }else if(rideOn){camera.fov=45;camera.near=0.1;camera.updateProjectionMatrix();camera.updateMatrixWorld();rideOn=false;}
 
   const W=innerWidth,H=innerHeight,anyBig=cards.some(c=>c.classList.contains("big"));
   nodes.forEach((n,i)=>{
@@ -525,7 +700,7 @@ const tmp=V3(0,0,0);
     const x=fx+(bx-fx)*bandDock,y=fy+(by-fy)*bandDock;
 
     n.gn.setAttribute("transform","translate("+x+","+y+")");
-    n.gn.style.display=anyBig?"none":"";
+    n.gn.style.display=(anyBig||rideMix>0.3)?"none":"";
 
     const isThisOpen=qOpen&&!pendingOpenCards&&!anyBig&&cards[i].classList.contains("open");
     cardGate[i]+=((isThisOpen?1:0)-cardGate[i])*(1-Math.exp(-dt*14));
@@ -543,5 +718,21 @@ const tmp=V3(0,0,0);
   renderer.render(scene,camera);
 })();
 </script>
+<aside id="help" aria-label="Tastenkürzel" aria-hidden="true">
+  <h2><span>Tastenkürzel</span><span class="hint">E zum Schließen</span></h2>
+  <ul>
+    <li><kbd>E</kbd><span class="desc">Liste ein- / ausblenden</span></li>
+    <li><kbd>Q</kbd><span class="desc">Karten &amp; Andocken umschalten</span></li>
+    <li><kbd>Ü</kbd><span class="desc">Kugel auf dem Band ein- / ausblenden</span></li>
+    <li><kbd>Ä</kbd><span class="desc">Schnittband ein- / ausblenden</span></li>
+    <li><kbd>Ö</kbd><span class="desc">Verdrillung (3 / 0) umschalten</span></li>
+    <li><kbd>K</kbd><span class="desc">Kamerafahrt auf dem Band</span></li>
+    <li><kbd>X</kbd><span class="desc">Zittern ein- / ausblenden</span></li>
+    <li><kbd>Y</kbd><span class="desc">Kleinsche Flasche ein- / ausblenden</span></li>
+    <li><kbd>P</kbd><span class="desc">Pulse an den Knoten ein- / ausblenden</span></li>
+    <li><kbd>W</kbd><span class="desc">Ausgangszustand zurücksetzen</span></li>
+    <li><kbd>Esc</kbd><span class="desc">Vollansicht &amp; Kamerafahrt beenden</span></li>
+  </ul>
+</aside>
 </body>
 </html>
