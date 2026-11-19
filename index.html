@@ -52,17 +52,17 @@ html,body{height:100%;margin:0;background:#000;color:var(--ink);font-family:var(
 .card iframe{flex:1;min-height:0;width:100%;border:0;background:#fff}
 
 /* Hochformat: Schleife oben, Fenster als 2x2-Raster darunter */
-.c1{left:2vw;top:36vh;width:47vw;height:29vh;--d:0ms;--dc:90ms}
-.c2{left:51vw;top:36vh;width:47vw;height:29vh;--d:85ms;--dc:60ms}
-.c3{left:2vw;top:67vh;width:47vw;height:29vh;--d:170ms;--dc:30ms}
-.c4{left:51vw;top:67vh;width:47vw;height:29vh;--d:255ms;--dc:0ms}
+.c1{left:2vw;top:36vh;width:47vw;height:29vh;--d:0ms;--dc:165ms}
+.c2{left:51vw;top:36vh;width:47vw;height:29vh;--d:165ms;--dc:110ms}
+.c3{left:2vw;top:67vh;width:47vw;height:29vh;--d:330ms;--dc:55ms}
+.c4{left:51vw;top:67vh;width:47vw;height:29vh;--d:495ms;--dc:0ms}
 
 /* Querformat: Schleife in der Mitte, je zwei Fenster links und rechts */
 @media (min-aspect-ratio:115/100){
-  .c1{left:2vw;top:4vh;width:30vw;height:44vh;--d:0ms;--dc:90ms}
-  .c2{left:2vw;top:52vh;width:30vw;height:44vh;--d:85ms;--dc:60ms}
-  .c3{left:68vw;top:4vh;width:30vw;height:44vh;--d:170ms;--dc:30ms}
-  .c4{left:68vw;top:52vh;width:30vw;height:44vh;--d:255ms;--dc:0ms}
+  .c1{left:2vw;top:4vh;width:30vw;height:44vh;--d:0ms;--dc:165ms}
+  .c2{left:2vw;top:52vh;width:30vw;height:44vh;--d:165ms;--dc:110ms}
+  .c3{left:68vw;top:4vh;width:30vw;height:44vh;--d:330ms;--dc:55ms}
+  .c4{left:68vw;top:52vh;width:30vw;height:44vh;--d:495ms;--dc:0ms}
 }
 .card.big{left:3vw!important;top:3vh!important;width:94vw!important;height:94vh!important;z-index:40;--d:0ms;--dc:0ms}
 </style>
@@ -72,16 +72,13 @@ html,body{height:100%;margin:0;background:#000;color:var(--ink);font-family:var(
 <svg id="cords" xmlns="http://www.w3.org/2000/svg"></svg>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-// ===== Inhalte: hier Titel und Adressen ändern. t = Lage des Punkts auf der Schleife (0 bis 1; 0, 1/3, 2/3 sind die Ecken) =====
 const LINKS=[
   {title:"Transformationsweg",url:"https://t0dysseus.github.io/transformationsweg/weg",t:0},
   {title:"Generator",url:"https://t0dysseus.github.io/transformationsweg/generator",t:1/3},
   {title:"Plakat-Generator",url:"https://t0dysseus.github.io/transformationsweg/plakat_generator",t:2/3},
-  // Adresse vermutet nach dem Muster der anderen: bitte prüfen
   {title:"Kompetenznachweis-Generator",url:"https://t0dysseus.github.io/transformationsweg/kompetenznachweisgenerator",t:5/6}
 ];
 
-// ===== Schleife: Dreiecks-Band mit drei Halbdrehungen, schwarzer Hintergrund, weißes Raster =====
 const canvas=document.getElementById("c");
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
 renderer.setClearColor(0x000000,1);
@@ -121,7 +118,6 @@ occ.frustumCulled=false;group.add(occ);
 const band=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:0.85}));
 band.frustumCulled=false;group.add(band);
 
-// Easter Egg 3 (Taste Ö)
 let twistValue=3,twistStart=3,twistTarget=3,twistElapsed=0;
 function updateTwist(turns){
   const endAngle=turns*Math.PI-delta;
@@ -138,7 +134,6 @@ function updateTwist(turns){
   g.computeBoundingSphere();
 }
 
-// Easter Egg 2 (Taste Ä)
 const cutPos=new Float32Array((2*U+1)*(V+1)*3),cutIdx=[];
 for(let i=0;i<2*U;i++)for(let j=0;j<V;j++){const a=i*(V+1)+j,b=a+V+1;cutIdx.push(a,b,a+1,b,b+1,a+1);}
 const cutGeometry=new THREE.BufferGeometry();
@@ -147,8 +142,7 @@ cutGeometry.setIndex(cutIdx);
 const cutMaterial=new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:0,side:THREE.DoubleSide});
 const cutBand=new THREE.Mesh(cutGeometry,cutMaterial);cutBand.frustumCulled=false;group.add(cutBand);
 function buildCutBand(){
-  const path=[],sideNormals=[];
-  const edge=HW*0.72;
+  const path=[],sideNormals=[],edge=HW*0.72;
   for(let i=0;i<=U;i++){
     path.push(C[i].clone().addScaledVector(Ws[i],edge));
     sideNormals.push(new THREE.Vector3().crossVectors(T[i],Ws[i]).normalize());
@@ -175,7 +169,6 @@ function buildCutBand(){
 buildCutBand();
 let cutMix=0,cutTarget=0;
 
-// Easter Egg 1 (Taste Ü)
 const ball=new THREE.Mesh(
   new THREE.SphereGeometry(0.045,24,16),
   new THREE.MeshStandardMaterial({color:0x4cc9f0,emissive:0x12384a,roughness:0.28,metalness:0.12})
@@ -183,21 +176,12 @@ const ball=new THREE.Mesh(
 ball.visible=false;group.add(ball);
 let ballPhase=0;
 
-// Easter Egg 4 (Taste P)
 const pulseNodes=LINKS.map(L=>L.t);
 const pulses=Array.from({length:4},(_,i)=>{
   const pulseGroup=new THREE.Group();
-  const halo=new THREE.Mesh(
-    new THREE.SphereGeometry(0.085,20,12),
-    new THREE.MeshBasicMaterial({color:0x2c8cbe,transparent:true,opacity:0.16,depthWrite:false})
-  );
-  const core=new THREE.Mesh(
-    new THREE.SphereGeometry(0.032,20,12),
-    new THREE.MeshBasicMaterial({color:0x9beaff,transparent:true,opacity:0.9})
-  );
-  pulseGroup.add(halo,core);
-  pulseGroup.visible=false;
-  group.add(pulseGroup);
+  const halo=new THREE.Mesh(new THREE.SphereGeometry(0.085,20,12),new THREE.MeshBasicMaterial({color:0x2c8cbe,transparent:true,opacity:0.16,depthWrite:false}));
+  const core=new THREE.Mesh(new THREE.SphereGeometry(0.032,20,12),new THREE.MeshBasicMaterial({color:0x9beaff,transparent:true,opacity:0.9}));
+  pulseGroup.add(halo,core);pulseGroup.visible=false;group.add(pulseGroup);
   return {group:pulseGroup,halo,core,phase:i/4,energy:[0.95,0.45,0.7,0.3][i]};
 });
 let pulsesActive=false;
@@ -213,28 +197,25 @@ function updatePulse(pulse){
   pulse.group.scale.setScalar(0.82+Math.min(1.2,pulse.energy)*0.22);
 }
 
-// ===== Fenster (iframes) & Punkte mit Linien =====
 const cards=[],NS="http://www.w3.org/2000/svg",svg=document.getElementById("cords");
 const floatPhases=LINKS.map((_,i)=>i*1.35);
 const cordProgress=LINKS.map(()=>0);
+const STAGGER_OPEN_SEC=0.165;
+const STAGGER_CLOSE_SEC=0.055;
+const cardGate=LINKS.map(()=>0);
 
-let qOpen=false;          // Zielzustand: Karten offen ja/nein
-let bandDock=0;           // 0 = schwebend, 1 = am Band angedockt
-let dockDelayTimer=0;     // kurze Verzögerung zwischen Andocken und Kartenöffnen
-let pendingOpenCards=false;
-let pendingUndock=false;
+let qOpen=false,bandDock=0,dockDelayTimer=0,pendingOpenCards=false,pendingUndock=false,seqTimers=[];
+function clearSeqTimers(){seqTimers.forEach(id=>clearTimeout(id));seqTimers=[];}
 
 const toggleBig=i=>{
   cards.forEach((c,k)=>{
-    if(k===i)c.classList.toggle("big");
-    else c.classList.remove("big");
+    if(k===i)c.classList.toggle("big");else c.classList.remove("big");
     c._big.textContent=c.classList.contains("big")?"✕":"⤢";
   });
 };
 
 const nodes=LINKS.map((L,i)=>{
-  const card=document.createElement("div");
-  card.className="card c"+(i+1);
+  const card=document.createElement("div");card.className="card c"+(i+1);
   const bar=document.createElement("div");bar.className="bar";
   const num=document.createElement("span");num.className="num";num.textContent=i+1;
   const ttl=document.createElement("span");ttl.className="ttl";ttl.textContent=L.title;
@@ -252,89 +233,84 @@ const nodes=LINKS.map((L,i)=>{
   const c=document.createElementNS(NS,"circle");c.setAttribute("r","11");c.setAttribute("fill","#000");c.setAttribute("stroke","#4cc9f0");c.setAttribute("stroke-width","2");
   const tx=document.createElementNS(NS,"text");tx.setAttribute("text-anchor","middle");tx.setAttribute("dy","4");tx.setAttribute("fill","#e8fbff");tx.setAttribute("font-size","12");tx.setAttribute("font-weight","600");tx.setAttribute("font-family","IBM Plex Sans, system-ui, sans-serif");tx.textContent=i+1;
   gn.append(c,tx);
-  gn.addEventListener("click",()=>{
-    if(!qOpen) triggerQ(true);
-    toggleBig(i);
-  });
+  gn.addEventListener("click",()=>{if(!qOpen)triggerQ(true);toggleBig(i);});
   svg.append(line,gn);
   return {line,gn,circle:c,local:curve.getPoint(L.t),t:L.t};
 });
 
 function openCardsSequence(){
+  clearSeqTimers();
   cards.forEach((card,i)=>{
     card.classList.remove("closing");
-    // Neu reflowen, damit die gestaffelte Transition sauber anläuft
-    void card.offsetWidth;
-    card.classList.add("open");
-    nodeFlash[i]=Math.max(nodeFlash[i],0.75);
+    const tid=setTimeout(()=>{
+      if(!qOpen)return;
+      void card.offsetWidth;
+      card.classList.add("open");
+      nodeFlash[i]=Math.max(nodeFlash[i],0.75);
+    },i*STAGGER_OPEN_SEC*1000);
+    seqTimers.push(tid);
   });
 }
 
 function closeCardsSequence(){
-  cards.forEach(card=>{
+  clearSeqTimers();
+  cards.forEach((card,i)=>{
     card.classList.remove("big","open");
     card._big.textContent="⤢";
-    void card.offsetWidth;
-    card.classList.add("closing");
+    const tid=setTimeout(()=>{
+      void card.offsetWidth;
+      card.classList.add("closing");
+    },(cards.length-1-i)*STAGGER_CLOSE_SEC*1000);
+    seqTimers.push(tid);
   });
 }
 
 function triggerQ(forceState){
-  qOpen = (typeof forceState === "boolean") ? forceState : !qOpen;
+  qOpen=(typeof forceState==="boolean")?forceState:!qOpen;
+  clearSeqTimers();
   if(qOpen){
-    pendingUndock=false;
-    pendingOpenCards=true;
-    dockDelayTimer=0.28; // Kugeln wandern erst kurz aufs Band, dann öffnen die Frames
-    closeCardsSequence();
-    cards.forEach(card=>card.classList.remove("closing"));
+    pendingUndock=false;pendingOpenCards=true;dockDelayTimer=0.28;
+    cards.forEach(card=>{card.classList.remove("big","open","closing");card._big.textContent="⤢";});
   }else{
-    pendingOpenCards=false;
-    pendingUndock=true;
-    dockDelayTimer=0.34; // Frames schließen zuerst weich, danach lösen sich die Kugeln
+    pendingOpenCards=false;pendingUndock=true;dockDelayTimer=0.34+cards.length*STAGGER_CLOSE_SEC;
     closeCardsSequence();
   }
 }
 
 addEventListener("keydown",e=>{
-  if(e.key==="Escape"){
-    cards.forEach(c=>{c.classList.remove("big");c._big.textContent="⤢";});
-  }
+  if(e.key==="Escape")cards.forEach(c=>{c.classList.remove("big");c._big.textContent="⤢";});
   const tag=e.target?.tagName?.toLowerCase();
-  const typing=tag==="input" || tag==="textarea" || e.target?.isContentEditable;
-  if(!typing && !e.repeat){
-    if(e.key.toLowerCase()==="ü"){
-      ball.visible=!ball.visible;
-      if(ball.visible) ballPhase=0;
-    }
-    if(e.key.toLowerCase()==="ä") cutTarget=cutTarget?0:1;
-    if(e.key.toLowerCase()==="ö"){
-      cutTarget=0;
-      twistStart=twistValue;
-      twistTarget=twistTarget>1.5?0:3;
-      twistElapsed=0;
-    }
-    if(e.key.toLowerCase()==="q"){
-      triggerQ();
-    }
-    if(e.key.toLowerCase()==="p"){
-      pulsesActive=!pulsesActive;
-      pulses.forEach(p=>{p.group.visible=pulsesActive;});
-      if(pulsesActive){
-        pulses.forEach((p,i)=>{p.phase=i/4;p.energy=[0.95,0.45,0.7,0.3][i];});
-        nodeFlash.fill(0);
-      }
-    }
+  if(tag==="input"||tag==="textarea"||e.target?.isContentEditable||e.repeat)return;
+  const k=e.key.toLowerCase();
+  if(k==="ü"){ball.visible=!ball.visible;if(ball.visible)ballPhase=0;}
+  if(k==="ä")cutTarget=cutTarget?0:1;
+  if(k==="ö"){cutTarget=0;twistStart=twistValue;twistTarget=twistTarget>1.5?0:3;twistElapsed=0;}
+  if(k==="q")triggerQ();
+  if(k==="p"){
+    pulsesActive=!pulsesActive;
+    pulses.forEach(p=>{p.group.visible=pulsesActive;});
+    if(pulsesActive){pulses.forEach((p,i)=>{p.phase=i/4;p.energy=[0.95,0.45,0.7,0.3][i];});nodeFlash.fill(0);}
   }
 });
 
-// ===== Ansicht =====
 const R0=0.35;
 let rx=R0,ry=0,zf=1,spin=true,drag=false,moved=false,dx0=0,dy0=0,lx=0,ly=0,fitDist=9,land=true,last=performance.now();
 canvas.addEventListener("pointerdown",e=>{drag=true;moved=false;dx0=lx=e.clientX;dy0=ly=e.clientY;canvas.setPointerCapture(e.pointerId);canvas.style.cursor="grabbing";});
-canvas.addEventListener("pointermove",e=>{if(!drag)return;if(Math.hypot(e.clientX-dx0,e.clientY-dy0)>6)moved=true;ry+=(e.clientX-lx)*0.01;rx+=(e.clientY-ly)*0.01;lx=e.clientX;ly=e.clientY;});
-canvas.addEventListener("pointerup",()=>{const wasClick=drag&&!moved;drag=false;canvas.style.cursor="grab";if(wasClick)triggerQ();});
+canvas.addEventListener("pointermove",e=>{
+  if(!drag)return;
+  if(Math.hypot(e.clientX-dx0,e.clientY-dy0)>6)moved=true;
+  ry+=(e.clientX-lx)*0.01;rx+=(e.clientY-ly)*0.01;lx=e.clientX;ly=e.clientY;
+});
+canvas.addEventListener("pointerup",()=>{
+  const wasClick=drag&&!moved;
+  drag=false;canvas.style.cursor="grab";
+  if(wasClick)triggerQ();
+});
 canvas.addEventListener("pointercancel",()=>{drag=false;canvas.style.cursor="grab";});
-document.addEventListener("click",e=>{if(e.target===canvas||e.target.closest(".card, #cords .node"))return;triggerQ();});
+document.addEventListener("click",e=>{
+  if(e.target===canvas||e.target.closest(".card, #cords .node"))return;
+  triggerQ();
+});
 canvas.addEventListener("wheel",e=>{e.preventDefault();zf=Math.min(2,Math.max(0.5,zf+e.deltaY*0.001));},{passive:false});
 
 function layout(){
@@ -343,7 +319,7 @@ function layout(){
   const f=2*Math.tan(Math.PI/8),D=3.6;
   const fw=land?0.34:0.9,fh=land?0.8:0.24;
   fitDist=Math.max(D/(fw*f*a),D/(fh*f));
-  const halfH=fitDist*Math.tan(Math.PI/8),halfW=halfH*a;
+  const halfH=fitDist*Math.tan(Math.PI/8);
   group.position.set(0,(land?-0.1:0.55)*halfH,0);
 }
 addEventListener("resize",layout);layout();
@@ -390,25 +366,11 @@ const tmp=V3(0,0,0);
     });
   }
 
-  // Ablaufsteuerung für Q
-  const targetDock = qOpen ? 1 : 0;
-  bandDock += (targetDock - bandDock) * (1 - Math.exp(-dt * 4.5));
+  bandDock+=((qOpen?1:0)-bandDock)*(1-Math.exp(-dt*4.5));
+  if(pendingOpenCards){dockDelayTimer-=dt;if(dockDelayTimer<=0||bandDock>0.78){pendingOpenCards=false;openCardsSequence();}}
+  if(pendingUndock){dockDelayTimer-=dt;if(dockDelayTimer<=0)pendingUndock=false;}
 
-  if(pendingOpenCards){
-    dockDelayTimer -= dt;
-    if(dockDelayTimer <= 0 || bandDock > 0.78){
-      pendingOpenCards = false;
-      openCardsSequence();
-    }
-  }
-  if(pendingUndock){
-    dockDelayTimer -= dt;
-    if(dockDelayTimer <= 0){
-      pendingUndock = false;
-    }
-  }
-
-  const nowSec = now * 0.001;
+  const nowSec=now*0.001;
   nodes.forEach((n,i)=>{
     nodeFlash[i]=Math.max(0,nodeFlash[i]-dt*2.4);
     const glow=5+nodeFlash[i]*18;
@@ -426,37 +388,25 @@ const tmp=V3(0,0,0);
     tmp.copy(C[ci]).lerp(C[ci+1],a);
     group.localToWorld(tmp);tmp.project(camera);
     const bx=(tmp.x+1)/2*W,by=(1-tmp.y)/2*H;
-
     const ph=floatPhases[i]+nowSec*0.6;
     const fx=bx+Math.cos(ph*1.2+i)*Math.min(65,W*0.055);
     const fy=by+Math.sin(ph*1.6+i*1.4)*Math.min(50,H*0.055);
-
-    const x=fx+(bx-fx)*bandDock;
-    const y=fy+(by-fy)*bandDock;
+    const x=fx+(bx-fx)*bandDock,y=fy+(by-fy)*bandDock;
 
     n.gn.setAttribute("transform","translate("+x+","+y+")");
     n.gn.style.display=anyBig?"none":"";
 
-    // Verbindungslinie wächst fließend mit, sobald der Frame öffnet
-    const cardIsOpen = qOpen && !pendingOpenCards && !anyBig;
-    const targetCord = cardIsOpen ? 1 : 0;
-    cordProgress[i] += (targetCord - cordProgress[i]) * (1 - Math.exp(-dt * 7.5));
+    const isThisOpen=qOpen&&!pendingOpenCards&&!anyBig&&cards[i].classList.contains("open");
+    cardGate[i]+=((isThisOpen?1:0)-cardGate[i])*(1-Math.exp(-dt*14));
+    cordProgress[i]+=(cardGate[i]-cordProgress[i])*(1-Math.exp(-dt*8));
 
-    if(land && !anyBig && cordProgress[i] > 0.02){
-      const r=cards[i].getBoundingClientRect();
-      const ax=i<2?r.right:r.left;
-      const ay=r.top+r.height/2;
-      const lx2=x+(ax-x)*cordProgress[i];
-      const ly2=y+(ay-y)*cordProgress[i];
-      n.line.setAttribute("x1",x);
-      n.line.setAttribute("y1",y);
-      n.line.setAttribute("x2",lx2);
-      n.line.setAttribute("y2",ly2);
+    if(land&&!anyBig&&cordProgress[i]>0.02){
+      const r=cards[i].getBoundingClientRect(),ax=i<2?r.right:r.left,ay=r.top+r.height/2;
+      const lx2=x+(ax-x)*cordProgress[i],ly2=y+(ay-y)*cordProgress[i];
+      n.line.setAttribute("x1",x);n.line.setAttribute("y1",y);n.line.setAttribute("x2",lx2);n.line.setAttribute("y2",ly2);
       n.line.setAttribute("stroke-opacity",String(0.82*cordProgress[i]));
       n.line.style.display="";
-    }else{
-      n.line.style.display="none";
-    }
+    }else n.line.style.display="none";
   });
 
   renderer.render(scene,camera);
