@@ -101,7 +101,7 @@ html,body{height:100%;margin:0;background:#000;color:var(--ink);font-family:var(
 <svg id="cords" xmlns="http://www.w3.org/2000/svg"></svg>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-// Zielseiten und Positionen der 4 Knotenpunkte auf der Schleife
+// Zielseiten und Positionen der 4 Knotenpunkte auf der Schleife[cite: 3]
 const LINKS=[
   {title:"Transformationsweg",url:"https://t0dysseus.github.io/transformationsweg/weg",t:0},
   {title:"Generator",url:"https://t0dysseus.github.io/transformationsweg/generator",t:1/3},
@@ -119,7 +119,7 @@ const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
 const TAU=Math.PI*2;
 const group=new THREE.Group();scene.add(group);
 
-// Parameter fuer die Grundkurve, Verdrillung und Gitteraufloesung
+// Parameter fuer die Grundkurve, Verdrillung und Gitteraufloesung[cite: 3]
 const S=0.62,A=0.4,N=18,HW=0.12,K=3,U=420,V=10;
 const pt=t=>V3(S*(2*Math.cos(t)+A*Math.cos(2*t)),S*(2*Math.sin(t)-A*Math.sin(2*t)),0);
 const prof=x=>x+0.1*Math.sin(6*Math.PI*x)/Math.PI;
@@ -153,7 +153,7 @@ occ.frustumCulled=false;group.add(occ);
 const band=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:0.85}));
 band.frustumCulled=false;group.add(band);
 
-// Schnittband-Geometrie fuer die Taste 'Ae'
+// Schnittband-Geometrie fuer die Taste 'Ae'[cite: 3]
 const cutPos=new Float32Array((2*U+1)*(V+1)*3),cutIdx=[];
 for(let i=0;i<2*U;i++)for(let j=0;j<V;j++){const a=i*(V+1)+j,b=a+V+1;cutIdx.push(a,b,a+1,b,b+1,a+1);}
 const cutGeometry=new THREE.BufferGeometry();
@@ -197,7 +197,7 @@ let phiPrev=K*Math.PI;
 const bandBaseArr=new Float32Array((U+1)*(V+1)*3);
 const kleinPosArr=new Float32Array((U+1)*(V+1)*3);
 
-// Zielgitter fuer die Kleinsche Flasche ('Y')
+// Zielgitter fuer die Kleinsche Flasche ('Y')[cite: 3]
 function buildKleinGrid(){
   for(let i=0;i<=U;i++){
     const u=i/U,th=u*TAU;
@@ -214,6 +214,193 @@ function buildKleinGrid(){
 }
 buildKleinGrid();
 let kleinTarget=0,kleinMix=0;
+
+// Langsamer, stetiger Pfad-Morph durch RAEUME FUER JEDEN ('T', ohne Punkte bei Ae / Ue)
+const LETTER_SEQUENCE=["R","A","U","M","E"," ","F","U","R"," ","J","E","D","E","N"];
+const LETTER_GRIDS={};
+const seqFromArr=new Float32Array((U+1)*(V+1)*3);
+const seqToArr=new Float32Array((U+1)*(V+1)*3);
+const seqCurrentArr=new Float32Array((U+1)*(V+1)*3);
+
+function smoothLetterLoop2D(pts,nOut){
+  const m=pts.length;
+  const getP=i=>pts[((i%m)+m)%m];
+  const raw=[];
+  const steps=40;
+  for(let i=0;i<m;i++){
+    const p0=getP(i-1),p1=getP(i),p2=getP(i+1),p3=getP(i+2);
+    for(let s=0;s<steps;s++){
+      const t=s/steps,t2=t*t,t3=t2*t;
+      const x=0.5*(2*p1[0]+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3);
+      const y=0.5*(2*p1[1]+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3);
+      raw.push([x,y]);
+    }
+  }
+  raw.push(raw[0].slice());
+  const cum=[0];
+  for(let i=1;i<raw.length;i++){
+    cum.push(cum[i-1]+Math.hypot(raw[i][0]-raw[i-1][0],raw[i][1]-raw[i-1][1]));
+  }
+  const total=cum[cum.length-1]||1;
+  const out=[];
+  let k=0;
+  for(let idxOut=0;idxOut<nOut;idxOut++){
+    const dist=(idxOut/(nOut-1))*total;
+    while(k<cum.length-2&&cum[k+1]<dist)k++;
+    const segLen=Math.max(1e-7,cum[k+1]-cum[k]);
+    const alpha=Math.min(1,Math.max(0,(dist-cum[k])/segLen));
+    out.push([
+      raw[k][0]+(raw[k+1][0]-raw[k][0])*alpha,
+      raw[k][1]+(raw[k+1][1]-raw[k][1])*alpha
+    ]);
+  }
+  return out;
+}
+
+function arcPts(cx,cy,rx,ry,aStart,aEnd,count){
+  const arr=[];
+  for(let k=1;k<=count;k++){
+    const th=aStart+(aEnd-aStart)*(k/(count+1));
+    arr.push([cx+rx*Math.cos(th),cy+ry*Math.sin(th)]);
+  }
+  return arr;
+}
+
+function getLetterWaypoints(ch){
+  switch(ch){
+    case "R":
+      return [
+        [-0.62,-0.92],[-0.62,-0.25],[-0.62,0.45],[-0.62,0.92],
+        [-0.10,0.92],[0.48,0.92],[0.66,0.62],[0.62,0.22],
+        [0.20,0.02],[-0.35,0.02],[0.15,-0.04],[0.42,-0.45],
+        [0.66,-0.92],[0.28,-0.92],[-0.05,-0.35],[-0.32,-0.08],
+        [-0.32,-0.92]
+      ];
+    case "A":
+      return [
+        [-0.68,-0.92],[-0.42,-0.15],[-0.12,0.75],[0.0,0.95],
+        [0.12,0.75],[0.42,-0.15],[0.68,-0.92],[0.40,-0.92],
+        [0.24,-0.38],[-0.24,-0.38],[0.20,-0.38],[0.0,0.35],
+        [-0.24,-0.38],[-0.40,-0.92]
+      ];
+    case "U":
+      return [
+        [-0.58,0.92],[-0.58,0.15],[-0.58,-0.45],
+        ...arcPts(0,-0.45,0.58,0.48,Math.PI,TAU,12),
+        [0.58,0.15],[0.58,0.92],[0.34,0.92],[0.34,0.15],[0.34,-0.42],
+        ...arcPts(0,-0.42,0.34,0.28,TAU,Math.PI,12),
+        [-0.34,-0.42],[-0.34,0.15],[-0.34,0.92]
+      ];
+    case "M":
+      return [
+        [-0.68,-0.92],[-0.68,0.0],[-0.68,0.92],[-0.44,0.92],
+        [0.0,0.05],[0.44,0.92],[0.68,0.92],[0.68,0.0],
+        [0.68,-0.92],[0.44,-0.92],[0.44,0.25],[0.0,-0.48],
+        [-0.44,0.25],[-0.44,-0.92]
+      ];
+    case "E":
+      return [
+        [-0.55,-0.92],[-0.55,0.0],[-0.55,0.92],[0.55,0.92],
+        [0.55,0.68],[-0.28,0.68],[-0.28,0.12],[0.42,0.12],
+        [0.42,-0.12],[-0.28,-0.12],[-0.28,-0.68],[0.58,-0.68],
+        [0.58,-0.92]
+      ];
+    case "F":
+      return [
+        [-0.55,-0.92],[-0.55,0.0],[-0.55,0.92],[0.55,0.92],
+        [0.55,0.68],[-0.28,0.68],[-0.28,0.12],[0.42,0.12],
+        [0.42,-0.12],[-0.28,-0.12],[-0.28,-0.92]
+      ];
+    case "J":
+      return [
+        [-0.45,0.92],[0.55,0.92],[0.55,0.68],[0.22,0.68],[0.22,-0.42],
+        ...arcPts(-0.18,-0.42,0.40,0.50,0,-Math.PI,12),
+        [-0.58,-0.22],[-0.34,-0.22],[-0.34,-0.42],
+        ...arcPts(-0.18,-0.42,0.16,0.26,-Math.PI,0,12),
+        [-0.02,0.68],[-0.45,0.68]
+      ];
+    case "D":
+      return [
+        [-0.55,-0.92],[-0.55,0.0],[-0.55,0.92],[-0.05,0.92],
+        ...arcPts(-0.05,0.0,0.68,0.92,Math.PI/2,-Math.PI/2,16),
+        [-0.55,-0.92],[-0.30,-0.68],[-0.08,-0.68],
+        ...arcPts(-0.08,0.0,0.42,0.68,-Math.PI/2,Math.PI/2,16),
+        [-0.30,0.68],[-0.30,-0.68]
+      ];
+    case "N":
+    default:
+      return [
+        [-0.62,-0.92],[-0.62,0.0],[-0.62,0.92],[-0.38,0.92],
+        [0.38,-0.35],[0.38,0.92],[0.62,0.92],[0.62,0.0],
+        [0.62,-0.92],[0.38,-0.92],[-0.38,0.35],[-0.38,-0.92]
+      ];
+  }
+}
+
+function buildLetterGrid(ch){
+  const arr=new Float32Array((U+1)*(V+1)*3);
+  const pts2d=smoothLetterLoop2D(getLetterWaypoints(ch),U+1);
+  const lC=Array.from({length:U+1},(_,i)=>{
+    const uFrac=i/U;
+    return V3(pts2d[i][0]*0.92,pts2d[i][1]*0.92,0.12*Math.sin(uFrac*TAU*2));
+  });
+  const lT=Array.from({length:U+1},(_,i)=>lC[(i+1)%U].clone().sub(lC[(i+U-1)%U]).normalize());
+  const lUv=Array.from({length:U+1},()=>V3(0,0,1));
+  const u0=V3(0,0,1).addScaledVector(lT[0],-lT[0].z).normalize();
+  lUv[0].copy(u0);
+  const uu=u0.clone();
+  for(let i=1;i<=U;i++){uu.addScaledVector(lT[i],-uu.dot(lT[i])).normalize();lUv[i].copy(uu);}
+  const delta=Math.atan2(lT[0].dot(new THREE.Vector3().crossVectors(lUv[0],lUv[U])),lUv[0].dot(lUv[U]));
+  const phiEnd=3*Math.PI-delta;
+  for(let i=0;i<=U;i++){
+    const ph=phiEnd*(i/U);
+    const w=lUv[i].clone().multiplyScalar(Math.cos(ph)).addScaledVector(new THREE.Vector3().crossVectors(lT[i],lUv[i]),Math.sin(ph));
+    for(let j=0;j<=V;j++){
+      const v=(-1+2*j/V)*HW,o=(i*(V+1)+j)*3;
+      arr[o]=lC[i].x+w.x*v;
+      arr[o+1]=lC[i].y+w.y*v;
+      arr[o+2]=lC[i].z+w.z*v;
+    }
+  }
+  return arr;
+}
+
+["R","A","U","M","E","F","J","D","N"].forEach(ch=>{
+  LETTER_GRIDS[ch]=buildLetterGrid(ch);
+});
+
+// Phase: "idle" | "morphing" | "holding" | "returning"
+let textPhase="idle",textSeqIndex=0,textPhaseTime=0,textActiveMix=0;
+const MORPH_DURATION=1.65; // langsame Verformung von einer Form zur naechsten
+const HOLD_DURATION=1.15;  // ruhiges Halten des Buchstabens
+const RETURN_DURATION=2.0; // sanfter Rueckweg zum Band
+
+function gridForSymbol(ch){
+  return (ch===" "||!LETTER_GRIDS[ch])?bandBaseArr:LETTER_GRIDS[ch];
+}
+
+function beginNextLetterStep(idx){
+  textSeqIndex=idx;
+  textPhaseTime=0;
+  textPhase="morphing";
+  seqFromArr.set(seqCurrentArr);
+  seqToArr.set(gridForSymbol(LETTER_SEQUENCE[idx]));
+}
+
+function toggleTextSequence(forceState){
+  const wantStart=(typeof forceState==="boolean")?forceState:(textPhase==="idle");
+  if(wantStart){
+    kleinTarget=0;
+    seqCurrentArr.set(bandBaseArr);
+    beginNextLetterStep(0);
+  }else{
+    textPhase="returning";
+    textPhaseTime=0;
+    seqFromArr.set(seqCurrentArr);
+    seqToArr.set(bandBaseArr);
+  }
+}
+
 let tremorActive=false, tremorIntensity=0, tremorPhase=0;
 
 function rebuildBand(turns){
@@ -251,9 +438,10 @@ function rebuildBand(turns){
   }
 }
 rebuildBand(twistValue);
+seqCurrentArr.set(bandBaseArr);
 let cutMix=0,cutTarget=0;
 
-// Web Audio Soundeffekte fuer Knotenpunkte und Andocken (ohne Ton bei 'Y' oder 'P')
+// Web Audio Soundeffekte fuer Knotenpunkte und Andocken (ohne Ton bei 'Y' oder 'P')[cite: 3]
 let audioCtx=null;
 function ensureAudio(){
   try{
@@ -273,7 +461,7 @@ function playNodeSound(idx,strength=1){
   try{
     const ctx=ensureAudio();if(!ctx)return;
     const now=ctx.currentTime;
-    const notes=[329.63,392.00,493.88,587.33]; // E4, G4, B4, D5
+    const notes=[329.63,392.00,493.88,587.33]; // E4, G4, B4, D5[cite: 3]
     const freq=notes[idx%notes.length];
     const peak=Math.min(0.08,0.025+0.035*strength);
 
@@ -320,9 +508,9 @@ const ball=new THREE.Mesh(
 );
 ball.add(new THREE.Mesh(new THREE.SphereGeometry(0.085,20,12),new THREE.MeshBasicMaterial({color:0x4cc9f0,transparent:true,opacity:0.18,depthWrite:false})));
 ball.visible=false;group.add(ball);
-let ballPhase=0; // 0 bis 2: die zweite Runde liegt auf der anderen Seite des Bandes
+let ballPhase=0; // 0 bis 2: die zweite Runde liegt auf der anderen Seite des Bandes[cite: 3]
 
-// Punkt auf dem Band: q in [0,laps), off = Abstand ueber der Flaeche, across = Versatz in der Breite
+// Punkt auf dem Band: q in [0,laps), off = Abstand ueber der Flaeche, across = Versatz in der Breite[cite: 3]
 const _n1=V3(0,0,0),_n2=V3(0,0,0),lastN=V3(0,0,1),tmpT=V3(0,0,0);
 function bandPoint(q,off,across,out,laps=2){
   q=((q%laps)+laps)%laps;
@@ -334,7 +522,7 @@ function bandPoint(q,off,across,out,laps=2){
   return out.addScaledVector(_n1,off*sg).addScaledVector(_n2,across*sg);
 }
 
-// Schweif fuer Kugel und Pulse
+// Schweif fuer Kugel und Pulse[cite: 3]
 const glowTex=(()=>{const c=document.createElement("canvas");c.width=c.height=64;const x=c.getContext("2d"),gr=x.createRadialGradient(32,32,0,32,32,32);
   gr.addColorStop(0,"rgba(255,255,255,1)");gr.addColorStop(.35,"rgba(255,255,255,.55)");gr.addColorStop(1,"rgba(255,255,255,0)");x.fillStyle=gr;x.fillRect(0,0,64,64);return new THREE.CanvasTexture(c);})();
 const trailMat=new THREE.PointsMaterial({map:glowTex,size:11,sizeAttenuation:false,vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false});
@@ -355,7 +543,7 @@ function setTrail(tr,sample,strength){
 }
 const ballTrail=makeTrail([.30,.79,.94]);
 
-// Kamerafahrt ('K'): Blick vom Band aus, zwei Runden
+// Kamerafahrt ('K'): Blick vom Band aus, zwei Runden[cite: 3]
 let rideTarget=0,rideMix=0,rideQ=0,rideOn=false;
 const rideCam=new THREE.PerspectiveCamera();
 
@@ -381,7 +569,7 @@ function updatePulse(pulse){
   pulse.group.scale.setScalar(0.82+Math.min(1.2,pulse.energy)*0.22);
 }
 
-// Zustand fuer das Herumtollen der Punkte 1-4 auf dem Band ('R'), ohne die Karten-Frames zu bewegen
+// Zustand fuer das Herumtollen der Punkte 1-4 auf dem Band ('R'), ohne die Karten-Frames zu bewegen[cite: 3]
 let roamActive=false,roamMix=0;
 const roamState=LINKS.map((L,i)=>({
   u:L.t,
@@ -485,7 +673,7 @@ function triggerQ(forceState){
   }
 }
 
-// Tastenkuerzel-Liste ('E') ein- und ausblenden
+// Tastenkuerzel-Liste ('E') ein- und ausblenden[cite: 3]
 const helpEl=document.getElementById("help");
 let helpOpen=false;
 function toggleHelp(forceState){
@@ -522,6 +710,10 @@ addEventListener("keydown",e=>{
     }
     if(k==="y"){
       kleinTarget=kleinTarget?0:1;
+      if(kleinTarget)textPhase="idle";
+    }
+    if(k==="t"){
+      toggleTextSequence();
     }
     if(k==="p"){
       pulsesActive=!pulsesActive;
@@ -530,12 +722,15 @@ addEventListener("keydown",e=>{
     }
     if(k==="w"){
       kleinTarget=0;
+      textPhase="idle";
+      textActiveMix=0;
       tremorActive=false;
       tremorIntensity=0;
       roamActive=false;
       proxies.forEach((m,q)=>m.position.copy(startPts[q]));
       phiPrev=twistValue*Math.PI;
       rebuildBand(twistValue);
+      seqCurrentArr.set(bandBaseArr);
     }
   }catch(err){
     console.error("Fehler bei Tastatureingabe:",err);
@@ -630,15 +825,57 @@ const tmp=V3(0,0,0);
     const now=performance.now(),dt=Math.min((now-last)/1000,0.1);last=now;
     if(spin&&dragMode!=="r")ry+=dt*0.24*(1-rideMix);
 
+    let gridChanged=false;
+
+    if(textPhase==="morphing"){
+      textPhaseTime+=dt;
+      const raw=Math.min(1,textPhaseTime/MORPH_DURATION);
+      const ease=raw*raw*(3-2*raw);
+      for(let k=0;k<seqCurrentArr.length;k++){
+        seqCurrentArr[k]=seqFromArr[k]+(seqToArr[k]-seqFromArr[k])*ease;
+      }
+      gridChanged=true;
+      if(raw>=1){
+        seqCurrentArr.set(seqToArr);
+        textPhase="holding";
+        textPhaseTime=0;
+      }
+    }else if(textPhase==="holding"){
+      textPhaseTime+=dt;
+      if(textPhaseTime>=HOLD_DURATION){
+        if(textSeqIndex+1<LETTER_SEQUENCE.length){
+          beginNextLetterStep(textSeqIndex+1);
+        }else{
+          textPhase="returning";
+          textPhaseTime=0;
+          seqFromArr.set(seqCurrentArr);
+          seqToArr.set(bandBaseArr);
+        }
+      }
+    }else if(textPhase==="returning"){
+      textPhaseTime+=dt;
+      const raw=Math.min(1,textPhaseTime/RETURN_DURATION);
+      const ease=raw*raw*(3-2*raw);
+      for(let k=0;k<seqCurrentArr.length;k++){
+        seqCurrentArr[k]=seqFromArr[k]+(seqToArr[k]-seqFromArr[k])*ease;
+      }
+      gridChanged=true;
+      if(raw>=1){
+        seqCurrentArr.set(bandBaseArr);
+        textPhase="idle";
+        textPhaseTime=0;
+      }
+    }
+
+    const prevTextMix=textActiveMix;
+    textActiveMix+=(textPhase!=="idle"?1:0);
+    if(textActiveMix>1)textActiveMix=1;
+    if(textPhase==="idle")textActiveMix=0;
+    if(textActiveMix!==prevTextMix)gridChanged=true;
+
     const prevKlein=kleinMix;
     kleinMix+=((kleinTarget?1:0)-kleinMix)*Math.min(1,dt*2.4);
-    if(Math.abs(kleinMix-prevKlein)>0.00005){
-      for(let k=0;k<posArr.length;k++){
-        posArr[k]=bandBaseArr[k]+(kleinPosArr[k]-bandBaseArr[k])*kleinMix;
-      }
-      g.attributes.position.needsUpdate=true;
-      g.computeBoundingSphere();
-    }
+    if(Math.abs(kleinMix-prevKlein)>0.00005)gridChanged=true;
 
     const prevTremor=tremorIntensity;
     if(tremorActive){
@@ -648,28 +885,37 @@ const tmp=V3(0,0,0);
       const decayRate=0.09+0.11*Math.sin(tremorIntensity*Math.PI);
       tremorIntensity=Math.max(0,tremorIntensity-dt*decayRate);
     }
-    if(prevTremor>0 && tremorIntensity===0){
-      for(let k=0;k<posArr.length;k++)posArr[k]=bandBaseArr[k]+(kleinPosArr[k]-bandBaseArr[k])*kleinMix;
-      g.attributes.position.needsUpdate=true;
-      g.computeBoundingSphere();
-    }
+    if(prevTremor>0 && tremorIntensity===0)gridChanged=true;
     tremorPhase+=dt*(12+tremorIntensity*28);
 
-    if(tremorIntensity>0.0005){
-      const baseSource=(kleinMix>0.0001)?null:bandBaseArr;
+    if(gridChanged || tremorIntensity>0.0005){
+      const hasText=textPhase!=="idle";
+      const hasKlein=kleinMix>0.0001;
+      const hasTremor=tremorIntensity>0.0005;
       for(let i=0;i<=U;i++){
         const u=i/U;
-        const wave=Math.sin(u*TAU*5-tremorPhase)*0.016*tremorIntensity;
-        const jitter=Math.sin(u*97+tremorPhase*2.7)*Math.cos(u*43-tremorPhase*1.9)*0.014*tremorIntensity;
+        const wave=hasTremor?(Math.sin(u*TAU*5-tremorPhase)*0.016*tremorIntensity):0;
+        const jitter=hasTremor?(Math.sin(u*97+tremorPhase*2.7)*Math.cos(u*43-tremorPhase*1.9)*0.014*tremorIntensity):0;
         const disp=wave+jitter;
         for(let j=0;j<=V;j++){
           const o=(i*(V+1)+j)*3;
-          const bx=baseSource?baseSource[o]:(bandBaseArr[o]+(kleinPosArr[o]-bandBaseArr[o])*kleinMix);
-          const by=baseSource?baseSource[o+1]:(bandBaseArr[o+1]+(kleinPosArr[o+1]-bandBaseArr[o+1])*kleinMix);
-          const bz=baseSource?baseSource[o+2]:(bandBaseArr[o+2]+(kleinPosArr[o+2]-bandBaseArr[o+2])*kleinMix);
-          posArr[o]=bx+Ws[i].x*disp+T[i].x*(disp*0.35);
-          posArr[o+1]=by+Ws[i].y*disp+T[i].y*(disp*0.35);
-          posArr[o+2]=bz+Ws[i].z*disp+T[i].z*(disp*0.35);
+          let bx=hasText?seqCurrentArr[o]:bandBaseArr[o];
+          let by=hasText?seqCurrentArr[o+1]:bandBaseArr[o+1];
+          let bz=hasText?seqCurrentArr[o+2]:bandBaseArr[o+2];
+          if(hasKlein){
+            bx+=(kleinPosArr[o]-bx)*kleinMix;
+            by+=(kleinPosArr[o+1]-by)*kleinMix;
+            bz+=(kleinPosArr[o+2]-bz)*kleinMix;
+          }
+          if(hasTremor){
+            posArr[o]=bx+Ws[i].x*disp+T[i].x*(disp*0.35);
+            posArr[o+1]=by+Ws[i].y*disp+T[i].y*(disp*0.35);
+            posArr[o+2]=bz+Ws[i].z*disp+T[i].z*(disp*0.35);
+          }else{
+            posArr[o]=bx;
+            posArr[o+1]=by;
+            posArr[o+2]=bz;
+          }
         }
       }
       g.attributes.position.needsUpdate=true;
@@ -818,6 +1064,7 @@ const tmp=V3(0,0,0);
     <li><kbd>K</kbd><span class="desc">Kamerafahrt auf dem Band</span></li>
     <li><kbd>X</kbd><span class="desc">Zittern ein- / ausblenden</span></li>
     <li><kbd>Y</kbd><span class="desc">Kleinsche Flasche ein- / ausblenden</span></li>
+    <li><kbd>T</kbd><span class="desc">Buchstaben-Morph („RÄUME FÜR JEDEN“)</span></li>
     <li><kbd>P</kbd><span class="desc">Pulse an den Knoten ein- / ausblenden</span></li>
     <li><kbd>W</kbd><span class="desc">Ausgangszustand zurücksetzen</span></li>
     <li><kbd>Esc</kbd><span class="desc">Vollansicht &amp; Kamerafahrt beenden</span></li>
