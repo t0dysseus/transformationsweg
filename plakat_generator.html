@@ -125,14 +125,11 @@ function cloneAsSvg(node){
 }
 function bandGraphic(id,color,scale){
   const a=ASSETS[id],b=a.bounds;
-  // Kein inneres <svg> mit eigenem viewBox: Das würde die Grafik an
-  // einem zusätzlichen Rechteck beschneiden. Stattdessen bleibt die
-  // Original-Geometrie erhalten und wird nur um ihren Zeichenbereich
-  // verschoben. Die äußere Plakat-Transformation übernimmt die Skalierung.
-  const group=document.createElementNS(NS,'g');
-  group.setAttribute('transform',`translate(${-b.x} ${-b.y})`);
-  const original=cloneAsSvg(a.graphicGroup);
-  group.appendChild(original);
+  // Wichtig: Die Original-SVG hat ein großes Seitenformat (z.B. 1191 x 1191).
+  // Für das Plakat wird nur der bekannte Zeichenbereich als ViewBox verwendet.
+  // Dadurch wird exakt dieser Bereich auf b.width x b.height abgebildet,
+  // statt die komplette Original-Leinwand mit der Ausschnitt-Skalierung zu vergrößern.
+  const group=cloneAsSvg(a.graphicGroup);
   const paths=Array.from(group.getElementsByTagName('*')).filter(el=>el.localName==='path');
   paths.forEach(path=>{
     const style=path.getAttribute('style')||'';
@@ -142,7 +139,7 @@ function bandGraphic(id,color,scale){
     path.style.setProperty('fill','none');
     path.style.setProperty('stroke-width',((originalWidth>=1 ? 1 : .55)*LW/scale)+'px');
   });
-  return group;
+  return makeNestedSVG(id,[b.x,b.y,b.width,b.height],b.width,b.height,[group]);
 }
 function logoGraphic(id){
   const a=ASSETS[id],v=a.viewBox;
