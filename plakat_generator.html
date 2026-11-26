@@ -48,7 +48,7 @@ const BAND_LAYOUT={
   bkg:{x:123.141,y:314.626,width:352.797,height:262.962},
   gzg:{x:2.757,y:167.018,width:1175.794,height:937.694}
 };
-const ASSETS={};
+const ASSETS={},LOCAL={};
 function parseViewBox(root){
   const raw=root.getAttribute('viewBox');
   if(!raw) throw new Error('viewBox fehlt');
@@ -57,10 +57,14 @@ function parseViewBox(root){
   return v;
 }
 async function loadSVGAsset(id,filename){
-  const assetURL=new URL('input/'+filename,document.baseURI);
-  const response=await fetch(assetURL.href);
-  if(!response.ok) throw new Error(filename+' (HTTP '+response.status+')');
-  const source=await response.text();
+  let source=LOCAL[filename];
+  if(source===undefined){
+    const assetURL=new URL('input/'+filename,document.baseURI);
+    let response;
+    try{response=await fetch(assetURL.href);}catch(e){throw new Error(filename+' (Abruf von '+assetURL.href+' nicht möglich)');}
+    if(!response.ok) throw new Error(filename+' (HTTP '+response.status+' bei '+assetURL.href+')');
+    source=await response.text();
+  }
   const doc=new DOMParser().parseFromString(source,'image/svg+xml');
   const root=doc.documentElement;
   if(doc.querySelector('parsererror') || root.localName!=='svg') throw new Error(filename+' (ungültige SVG-Datei)');
@@ -92,14 +96,24 @@ async function loadSVGAsset(id,filename){
 }
 async function loadAssets(){
   const status=$('#assetStatus');
-  status.textContent='Grafiken werden geladen …';
+  status.innerHTML='';status.style.color='var(--mut)';status.textContent='Grafiken werden geladen …';
   const entries=Object.entries(ASSET_FILES);
   const results=await Promise.allSettled(entries.map(([id,file])=>loadSVGAsset(id,file)));
   const failed=results.map((r,i)=>r.status==='rejected'?entries[i][1]+': '+r.reason.message:null).filter(Boolean);
   if(failed.length){
-    status.textContent='SVG-Dateien konnten nicht geladen werden: '+failed.join(' · ');
+    const hint=location.protocol==='file:'?' Die Seite läuft als lokale Datei, dort blockiert der Browser das Laden.':'';
+    status.textContent='SVG-Dateien konnten nicht geladen werden.'+hint+' '+failed.join(' · ');
     status.style.color='#b42318';
-    throw new Error(failed.join('\\n'));
+    status.appendChild(document.createElement('br'));
+    const lab=document.createElement('label');lab.style.cssText='display:inline-block;margin-top:6px;padding:6px 12px;border:1px solid currentColor;border-radius:999px;cursor:pointer';
+    lab.textContent='Ordner „input“ von Hand wählen';
+    const inp=document.createElement('input');inp.type='file';inp.accept='.svg';inp.multiple=true;inp.setAttribute('webkitdirectory','');inp.hidden=true;
+    inp.onchange=async()=>{
+      for(const fl of inp.files){if(/\.svg$/i.test(fl.name))LOCAL[fl.name.replace(/(?:_\d+|_[0-9a-f]{6})(?=\.svg$)/i,'')]=await fl.text();}
+      boot();
+    };
+    lab.appendChild(inp);status.appendChild(lab);
+    throw new Error(failed.join(' | '));
   }
   status.textContent='';
 }
@@ -215,5 +229,6 @@ function svgOut(){const c=$('#pz').cloneNode(true);c.querySelector('#hl').remove
 $('#bsv').onclick=async()=>{const fn='plakat_'+cur+'_'+fmt+'.svg',data=svgOut();try{if(window.claude&&claude.use){const d=await claude.use('downloads');if(d){await d.save({filename:fn,data});return}}}catch(e){}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'image/svg+xml'}));a.download=fn;a.click()};
 function fch(){const h=$('#fc');h.innerHTML='';for(const k in FM){const b=document.createElement('button');b.textContent=k+' ('+FM[k][0]+' x '+FM[k][1]+' mm)';b.className=k==fmt?'on':'';b.onclick=()=>{fmt=k;fch()};h.appendChild(b)}}
 $('#bpr').onclick=()=>{let st=$('#pgs');if(!st){st=document.createElement('style');st.id='pgs';document.head.appendChild(st)}st.textContent='@media print{@page{size:'+FM[fmt][0]+'mm '+FM[fmt][1]+'mm;margin:0}}';try{window.print()}catch(e){}};
-loadAssets().then(()=>{for(const k in V)S[k]=init(k);render();ctl();fch()}).catch(err=>{console.error(err);$('#assetStatus').title=err.message});
+function boot(){loadAssets().then(()=>{for(const k in V)S[k]=init(k);render();ctl();fch()}).catch(err=>{console.error(err);$('#assetStatus').title=err.message});}
+boot();
 </script></body></html>
