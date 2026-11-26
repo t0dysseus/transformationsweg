@@ -39,7 +39,7 @@ const ASSET_FILES={
   bkg:'plakat_blau_band_klein_gruen_v01.svg',
   gzg:'plakat_gruen_band_zentral_gruen_v01.svg'
 };
-const BAND_BOUNDS={
+const BAND_LAYOUT={
   gl:{x:207.037,y:11.945,width:776.477,height:776.364},
   glo:{x:281.846,y:83.167,width:626.859,height:639.383},
   gzb:{x:2.757,y:167.018,width:1175.794,height:937.694},
@@ -64,8 +64,8 @@ async function loadSVGAsset(id,filename){
   const root=doc.documentElement;
   if(doc.querySelector('parsererror') || root.localName!=='svg') throw new Error(filename+' (ungültige SVG-Datei)');
   const viewBox=parseViewBox(root);
-  const bounds=BAND_BOUNDS[id] || null;
-  if(bounds) BW[id]=bounds.width;
+  const layout=BAND_LAYOUT[id] || null;
+  if(layout) BW[id]=layout.width;
   // Originale SVG-Grafikgruppe direkt übernehmen. Falls eine Datei
   // stattdessen direkte Pfade enthält, diese nur als Fallback gruppieren.
   let graphicGroup=null;
@@ -87,7 +87,7 @@ async function loadSVGAsset(id,filename){
     const pathCount=Array.from(graphicGroup.getElementsByTagName('*')).filter(el=>el.localName==='path').length;
     if(!pathCount) throw new Error(filename+' (keine Pfade <path> in der Grafik gefunden)');
   }
-  ASSETS[id]={doc,root,viewBox,bounds,graphicGroup};
+  ASSETS[id]={doc,root,viewBox,layout,graphicGroup};
 }
 async function loadAssets(){
   const status=$('#assetStatus');
@@ -124,13 +124,13 @@ function cloneAsSvg(node){
   return copy;
 }
 function bandGraphic(id,color,scale){
-  const a=ASSETS[id],b=a.bounds;
-  // Wichtig: Die Original-SVG hat ein großes Seitenformat (z.B. 1191 x 1191).
-  // Für das Plakat wird nur der bekannte Zeichenbereich als ViewBox verwendet.
-  // Dadurch wird exakt dieser Bereich auf b.width x b.height abgebildet,
-  // statt die komplette Original-Leinwand mit der Ausschnitt-Skalierung zu vergrößern.
-  const group=cloneAsSvg(a.graphicGroup);
-  const paths=Array.from(group.getElementsByTagName('*')).filter(el=>el.localName==='path');
+  const a=ASSETS[id],b=a.layout;
+  // Die Bandgrafik wird ohne eigenes <svg>, ohne eigene viewBox und ohne
+  // inneren Clip direkt in die gemeinsame Plakat-SVG eingesetzt.
+  // Die Verschiebung richtet den tatsächlichen Zeichenbereich am bisherigen
+  // Layout-Anker aus; sie erzeugt ausdrücklich KEINE Begrenzung.
+  const sourceGroup=cloneAsSvg(a.graphicGroup);
+  const paths=Array.from(sourceGroup.getElementsByTagName('*')).filter(el=>el.localName==='path');
   paths.forEach(path=>{
     const style=path.getAttribute('style')||'';
     const widthMatch=style.match(/(?:^|;)\s*stroke-width\s*:\s*([0-9.]+)/i);
@@ -139,7 +139,10 @@ function bandGraphic(id,color,scale){
     path.style.setProperty('fill','none');
     path.style.setProperty('stroke-width',((originalWidth>=1 ? 1 : .55)*LW/scale)+'px');
   });
-  return makeNestedSVG(id,[b.x,b.y,b.width,b.height],b.width,b.height,[group]);
+  const positionedGroup=document.createElementNS(NS,'g');
+  positionedGroup.setAttribute('transform',`translate(${-b.x} ${-b.y})`);
+  positionedGroup.appendChild(sourceGroup);
+  return positionedGroup;
 }
 function logoGraphic(id){
   const a=ASSETS[id],v=a.viewBox;
