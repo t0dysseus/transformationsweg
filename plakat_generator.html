@@ -17,11 +17,11 @@ label.l{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px}textarea{
 @media print{.card,.chips,.tools{display:none}.app{display:block;padding:0}.stage{position:static}#pz{box-shadow:none;max-width:none}@page{margin:0}}
 </style></head><body><div class="app">
 <div class="stage"><div id="assetStatus" role="status" style="font-size:12px;color:var(--mut);text-align:center;margin:0 0 6px"></div><div class="chips" id="vch" style="justify-content:center;margin-bottom:10px"></div>
-<svg id="pz" viewBox="0 0 755 1068" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="cp"><rect width="755" height="1068"/></clipPath>
+<svg id="pz" viewBox="0 0 755 1068" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="cp"><rect width="755" height="1068"/></clipPath><clipPath id="cpo"><path id="cpop"/></clipPath><clipPath id="cpi"><rect id="cpir"/></clipPath>
 <linearGradient id="gt" x1="0" y1="0" x2="0" y2="1"><stop id="gt0" offset="0"/><stop id="gt1" offset="1"/></linearGradient><linearGradient id="gb" x1="0" y1="0" x2="0" y2="1"><stop id="gb0" offset="0"/><stop id="gb1" offset="1"/></linearGradient>
 <filter id="fs" filterUnits="userSpaceOnUse" x="-80" y="-40" width="915" height="1150"><feGaussianBlur id="fsb" stdDeviation="1.5"/></filter><filter id="fg" filterUnits="userSpaceOnUse" x="-80" y="-40" width="915" height="1150"><feGaussianBlur id="fgb" stdDeviation="7"/></filter>
 </defs>
-<rect width="755" height="1068" fill="#fff"/><rect id="gt2" filter="url(#fg)"/><rect id="gb2" filter="url(#fg)"/><rect id="fld" filter="url(#fs)"/>
+<rect width="755" height="1068" fill="#fff"/><rect id="gt2"/><rect id="gb2"/><rect id="fld" filter="url(#fs)"/>
 <g clip-path="url(#cp)" id="bl"></g><g id="ln" fill="none" stroke-width="1.8"></g><g id="tx"></g><g id="fx"></g><g id="hl"></g></svg></div>
 <div><div class="card"><h2>Variante</h2><div class="chips" id="vc2"></div><h2>Format (DIN, Hochformat)</h2><div class="chips" id="fc"></div><h2>Texte</h2><div id="tf"></div>
 <div class="tools"><button class="pri big" id="bsv">SVG speichern</button><button class="big" id="bpr">Drucken / PDF</button></div></div>
@@ -153,7 +153,7 @@ function bandGraphic(id,color,scale,outlineOnly){
     if(outlineOnly && originalWidth<1){path.remove();return;}
     path.style.setProperty('stroke',color);
     path.style.setProperty('fill','none');
-    path.style.setProperty('stroke-width',((originalWidth>=1 ? 1 : .55)*LW/scale)+'px');
+    path.style.setProperty('stroke-width',((originalWidth>=1 ? 1.4 : .7)*LW/scale)+'px');
   });
   const positionedGroup=document.createElementNS(NS,'g');
   positionedGroup.setAttribute('transform',`translate(${-b.x} ${-b.y})`);
@@ -165,7 +165,7 @@ function logoGraphic(id){
   const children=Array.from(a.root.childNodes).filter(n=>n.nodeType===1 || (n.nodeType===3 && n.textContent.trim())).map(n=>cloneAsSvg(n));
   return makeNestedSVG(id,v,v[2],v[3],children);
 }
-const C={tx:'#333333',g:'#96C21B',bf:'#2C9BD2',bb:'#0D4E6E',w:'#fff'};
+const C={tx:'#333333',g:'#A0C042',bf:'#4F98CB',bb:'#0D4E6E',w:'#fff',gl:'#AED5EE'};
 const PL='"IBM Plex Sans",Arial,sans-serif',AT='"Atkinson Hyperlegible",Arial,sans-serif';
 const V={
 blau:{name:'Blau',field:{y:330,c:C.bf,e:C.g,bs:1.5,es:7},
@@ -173,8 +173,8 @@ blau:{name:'Blau',field:{y:330,c:C.bf,e:C.g,bs:1.5,es:7},
  lines:[[347,42,240,225,C.bb],[460,398,382,395,'#fff'],[245,535,335,740,'#fff']],
  tx:{title:['Hackathon'],sub:['Für alle vom CJD Sickingenstraße'],claim:['Dein CJD braucht','Deine Ideen'],cta:['Melde dich jetzt an!']},
  P:{title:[355,92,70,C.tx],sub:[355,123,21,C.tx],claim:[460,430,29,'#fff'],cta:[460,496,17,'#fff'],dates:[23,570,53,'#fff'],foot:[153,1041,10,C.tx]}},
-gruen:{name:'Grün',field:{y:585,c:C.g,e:C.bf,bs:1.5,es:7},
- bands:[['glo',-70,0,380,C.g],['gl',-323,65,520,C.g],['gzg',217,250,752,C.g,'gzb',C.bb]],
+gruen:{name:'Grün',field:{y:585,c:C.g,e:C.gl,bs:1.5,es:7},
+ bands:[['glo',-255,-215,564,C.g],['gl',-465,32,659,C.g],['gzg',217,251.5,1060,C.g,'gzb',C.bb]],
  lines:[[347,42,157,190,C.g],[419,355,337,310,C.g],[257,638,517,750,'#fff']],
  tx:{title:['Keine Lust','mehr'],sub:['auf Ruhepause auf der Toilette?'],claim:['Dein CJD braucht Deine','Ideen'],cta:['Hackathon - für alle vom CJD','Sickingenstraße. Melde dich jetzt an!']},
  P:{title:[357,88,70,C.tx],sub:[357,195,24,C.tx],claim:[420,377,24,C.tx],cta:[420,435,17,C.tx],dates:[33,675,53,'#fff'],foot:[153,1041,10,C.tx]}}};
@@ -184,21 +184,29 @@ const init=k=>{const v=V[k],o={};v.bands.forEach(b=>o[b[0]]={x:b[1],y:b[2],s:b[3
  for(const t in v.P)o[t]={x:0,y:0,s:1};o.lines=v.lines.map(l=>l.slice(0,4));o.tx=JSON.parse(JSON.stringify(v.tx));o.dt=DT.map(d=>d.slice());return o};
 
 const el=(n,a,p)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e};
-function txt(p,x,y,fs,fill,lines,font,wt,ls){const t=el('text',{x,y,'font-size':fs,fill,'font-family':font,'font-weight':wt,'letter-spacing':ls||0},p);lines.forEach((l,i)=>{const s=el('tspan',{x,dy:i?fs*1.15:0},t);s.textContent=l});return t}
+function txt(p,x,y,fs,fill,lines,font,wt,ls,lh){const t=el('text',{x,y,'font-size':fs,fill,'font-family':font,'font-weight':wt,'letter-spacing':ls||0},p);lines.forEach((l,i)=>{const s=el('tspan',{x,dy:i?fs*(lh||1.15):0},t);s.textContent=l});return t}
 function render(){const v=V[cur],s=S[cur];
   const FB=938,f=$('#fld');
- for(const [r,y,h,c] of [[f,v.field.y,FB-v.field.y,v.field.c],[$('#gt2'),v.field.y-11,22,v.field.e],[$('#gb2'),FB-11,22,v.field.e]]){r.setAttribute('x',-80);r.setAttribute('width',915);r.setAttribute('y',y);r.setAttribute('height',h);r.setAttribute('fill',c)}
- $('#fsb').setAttribute('stdDeviation',v.field.bs);$('#fgb').setAttribute('stdDeviation',v.field.es);
+ const GL=14;
+ for(const [r,y,h,c] of [[f,v.field.y,FB-v.field.y,v.field.c],[$('#gt2'),v.field.y-GL,GL,'url(#gt)'],[$('#gb2'),FB,GL,'url(#gb)']]){r.setAttribute('x',-80);r.setAttribute('width',915);r.setAttribute('y',y);r.setAttribute('height',h);r.setAttribute('fill',c)}
+ for(const [id,o] of [['gt0',0],['gt1',.92],['gb0',.92],['gb1',0]]){const st=$('#'+id);st.setAttribute('stop-color',v.field.e);st.setAttribute('stop-opacity',o)}
+ $('#fsb').setAttribute('stdDeviation',v.field.bs);
+ $('#cpop').setAttribute('d',`M-100 -100H855V${v.field.y}H-100ZM-100 ${FB}H855V1200H-100Z`);
+ const ci=$('#cpir');ci.setAttribute('x',-100);ci.setAttribute('width',955);ci.setAttribute('y',v.field.y);ci.setAttribute('height',FB-v.field.y);
  const bl=$('#bl');bl.innerHTML='';
- v.bands.forEach(b=>{const o=s[b[0]],g=el('g',{transform:`translate(${o.x} ${o.y}) scale(${o.s})`,'data-id':b[0],class:'hd'},bl);
-  g.appendChild(bandGraphic(b[0],b[4],o.s));if(b[5])g.appendChild(bandGraphic(b[5],b[6],o.s,true));});
+ v.bands.forEach(b=>{const o=s[b[0]],tr=`translate(${o.x} ${o.y}) scale(${o.s})`;
+  if(b[5]){
+   // Band läuft durch die Farbfläche: außerhalb Linienfarbe 1, innerhalb Linienfarbe 2 (Kontur durchgehend)
+   const lay=(clip,id,col,outline)=>{const w=clip?el('g',{'clip-path':`url(#${clip})`},bl):bl;const g=el('g',{transform:tr,'data-id':b[0],class:'hd'},w);g.appendChild(bandGraphic(id,col,o.s,outline))};
+   lay('cpo',b[0],b[4],false);lay(null,b[5],b[6],true);lay('cpi',b[5],b[6],false);
+  }else{const g=el('g',{transform:tr,'data-id':b[0],class:'hd'},bl);g.appendChild(bandGraphic(b[0],b[4],o.s));}});
  const ln=$('#ln');ln.innerHTML='';s.lines.forEach((l,i)=>el('line',{x1:l[0],y1:l[1],x2:l[2],y2:l[3],stroke:v.lines[i][4]},ln));
  const tx=$('#tx');tx.innerHTML='';const P=v.P,T=s.tx;
  const G=(id,fn)=>{const g=el('g',{transform:`translate(${s[id].x} ${s[id].y}) scale(${s[id].s})`,'data-id':id,class:'hd'},tx);fn(g)};
- G('title',g=>txt(g,P.title[0],P.title[1],P.title[2],P.title[3],T.title,PL,700,-1.5));
+ G('title',g=>txt(g,P.title[0],P.title[1],P.title[2],P.title[3],T.title,PL,700,-1.5,1.0));
  G('sub',g=>txt(g,P.sub[0],P.sub[1],P.sub[2],P.sub[3],T.sub,PL,400));
- G('claim',g=>txt(g,P.claim[0],P.claim[1],P.claim[2],P.claim[3],T.claim,AT,700));
- G('cta',g=>txt(g,P.cta[0],P.cta[1],P.cta[2],P.cta[3],T.cta,PL,400));
+ G('claim',g=>txt(g,P.claim[0],P.claim[1],P.claim[2],P.claim[3],T.claim,AT,700,0,1.35));
+ G('cta',g=>txt(g,P.cta[0],P.cta[1],P.cta[2],P.cta[3],T.cta,PL,400,0,1.5));
  G('dates',g=>s.dt.forEach((d,i)=>{txt(g,P.dates[0],P.dates[1]+i*90,53,P.dates[3],[d[0]],AT,700);txt(g,P.dates[0],P.dates[1]+i*90+26,17,P.dates[3],[d[1]],PL,400)}));
  const fx=$('#fx');fx.innerHTML='';
  const L=(id,inner,fn)=>{const o=s[id],g=el('g',{transform:`translate(${o.x} ${o.y}) scale(${o.s})`,'data-id':id,class:'hd'},fx);fn(g)};
