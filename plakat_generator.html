@@ -65,9 +65,12 @@ async function loadSVGAsset(id,filename){
   const viewBox=parseViewBox(root);
   const bounds=BAND_BOUNDS[id] || null;
   if(bounds) BW[id]=bounds.width;
-  if(['gl','glo','gzb','bzb','bkg','gzg'].includes(id) && !root.querySelector('g'))
-    throw new Error(filename+' (keine Grafikgruppe gefunden)');
-  ASSETS[id]={doc,root,viewBox,bounds};
+  // SVGs werden als XML geparst: Gruppen deshalb namespace-bewusst suchen.
+  const groups=root.getElementsByTagNameNS(NS,'g');
+  const graphicGroup=groups.length ? groups[0] : null;
+  if(['gl','glo','gzb','bzb','bkg','gzg'].includes(id) && !graphicGroup)
+    throw new Error(filename+' (keine SVG-Grafikgruppe im Namespace '+NS+' gefunden)');
+  ASSETS[id]={doc,root,viewBox,bounds,graphicGroup};
 }
 async function loadAssets(){
   const status=$('#assetStatus');
@@ -93,9 +96,9 @@ function makeNestedSVG(id,viewBox,width,height,children){
 }
 function bandGraphic(id,color,scale){
   const a=ASSETS[id],b=a.bounds;
-  const sourceGroup=a.root.querySelector('g');
-  const group=document.importNode(sourceGroup,true);
-  group.querySelectorAll('path').forEach(path=>{
+  const group=document.importNode(a.graphicGroup,true);
+  const paths=group.getElementsByTagNameNS(NS,'path');
+  Array.from(paths).forEach(path=>{
     const originalWidth=parseFloat(path.style.strokeWidth || path.getAttribute('stroke-width') || '0.3');
     path.style.setProperty('stroke',color);
     path.style.setProperty('fill','none');
