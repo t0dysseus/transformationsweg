@@ -56,7 +56,8 @@ function parseViewBox(root){
   return v;
 }
 async function loadSVGAsset(id,filename){
-  const response=await fetch('input/'+filename);
+  const assetURL=new URL('input/'+filename,document.baseURI);
+  const response=await fetch(assetURL.href);
   if(!response.ok) throw new Error(filename+' (HTTP '+response.status+')');
   const source=await response.text();
   const doc=new DOMParser().parseFromString(source,'image/svg+xml');
@@ -70,7 +71,7 @@ async function loadSVGAsset(id,filename){
   const groups=Array.from(root.getElementsByTagName('*')).filter(el=>el.localName==='g');
   const graphicGroup=groups.length ? groups[0] : null;
   if(['gl','glo','gzb','bzb','bkg','gzg'].includes(id) && !graphicGroup)
-    throw new Error(filename+' (keine SVG-Grafikgruppe im Namespace '+NS+' gefunden)');
+    throw new Error(filename+' (keine Grafikgruppe <g> gefunden; SVG-Elemente: '+Array.from(root.getElementsByTagName('*')).slice(0,12).map(el=>el.localName).join(', ')+')');
   ASSETS[id]={doc,root,viewBox,bounds,graphicGroup};
 }
 async function loadAssets(){
@@ -122,7 +123,7 @@ function bandGraphic(id,color,scale){
 }
 function logoGraphic(id){
   const a=ASSETS[id],v=a.viewBox;
-  const children=Array.from(a.root.childNodes).filter(n=>n.nodeType===1 || (n.nodeType===3 && n.textContent.trim())).map(n=>document.importNode(n,true));
+  const children=Array.from(a.root.childNodes).filter(n=>n.nodeType===1 || (n.nodeType===3 && n.textContent.trim())).map(n=>cloneAsSvg(n));
   return makeNestedSVG(id,v,v[2],v[3],children);
 }
 const C={tx:'#333333',g:'#96C21B',bf:'#2C9BD2',bb:'#0D4E6E',w:'#fff'};
