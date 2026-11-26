@@ -19,9 +19,10 @@ label.l{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px}textarea{
 <div class="stage"><div id="assetStatus" role="status" style="font-size:12px;color:var(--mut);text-align:center;margin:0 0 6px"></div><div class="chips" id="vch" style="justify-content:center;margin-bottom:10px"></div>
 <svg id="pz" viewBox="0 0 755 1068" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="cp"><rect width="755" height="1068"/></clipPath>
 <linearGradient id="gt" x1="0" y1="0" x2="0" y2="1"><stop id="gt0" offset="0"/><stop id="gt1" offset="1"/></linearGradient><linearGradient id="gb" x1="0" y1="0" x2="0" y2="1"><stop id="gb0" offset="0"/><stop id="gb1" offset="1"/></linearGradient>
+<filter id="fs" filterUnits="userSpaceOnUse" x="-80" y="-40" width="915" height="1150"><feGaussianBlur id="fsb" stdDeviation="1.5"/></filter><filter id="fg" filterUnits="userSpaceOnUse" x="-80" y="-40" width="915" height="1150"><feGaussianBlur id="fgb" stdDeviation="7"/></filter>
 </defs>
-<rect width="755" height="1068" fill="#fff"/><rect id="fld"/><rect id="et" height="12" fill="url(#gt)"/><rect id="eb" height="12" fill="url(#gb)"/>
-<g clip-path="url(#cp)" id="bl"></g><g id="ln" fill="none" stroke-width="1.2"></g><g id="tx"></g><g id="fx"></g><g id="hl"></g></svg></div>
+<rect width="755" height="1068" fill="#fff"/><rect id="gt2" filter="url(#fg)"/><rect id="gb2" filter="url(#fg)"/><rect id="fld" filter="url(#fs)"/>
+<g clip-path="url(#cp)" id="bl"></g><g id="ln" fill="none" stroke-width="1.8"></g><g id="tx"></g><g id="fx"></g><g id="hl"></g></svg></div>
 <div><div class="card"><h2>Variante</h2><div class="chips" id="vc2"></div><h2>Format (DIN, Hochformat)</h2><div class="chips" id="fc"></div><h2>Texte</h2><div id="tf"></div>
 <div class="tools"><button class="pri big" id="bsv">SVG speichern</button><button class="big" id="bpr">Drucken / PDF</button></div></div>
 <details class="card"><summary style="cursor:pointer;font-weight:600">Feinjustierung</summary><h2>Element</h2><div class="chips" id="ec"></div><div id="sc"></div>
@@ -123,7 +124,7 @@ function cloneAsSvg(node){
   Array.from(node.childNodes).forEach(child=>copy.appendChild(cloneAsSvg(child)));
   return copy;
 }
-function bandGraphic(id,color,scale){
+function bandGraphic(id,color,scale,outlineOnly){
   const a=ASSETS[id],b=a.layout;
   // Die Bandgrafik wird ohne eigenes <svg>, ohne eigene viewBox und ohne
   // inneren Clip direkt in die gemeinsame Plakat-SVG eingesetzt.
@@ -135,6 +136,7 @@ function bandGraphic(id,color,scale){
     const style=path.getAttribute('style')||'';
     const widthMatch=style.match(/(?:^|;)\s*stroke-width\s*:\s*([0-9.]+)/i);
     const originalWidth=parseFloat(widthMatch?.[1] || path.getAttribute('stroke-width') || '0.3');
+    if(outlineOnly && originalWidth<1){path.remove();return;}
     path.style.setProperty('stroke',color);
     path.style.setProperty('fill','none');
     path.style.setProperty('stroke-width',((originalWidth>=1 ? 1 : .55)*LW/scale)+'px');
@@ -152,13 +154,13 @@ function logoGraphic(id){
 const C={tx:'#333333',g:'#96C21B',bf:'#2C9BD2',bb:'#0D4E6E',w:'#fff'};
 const PL='"IBM Plex Sans",Arial,sans-serif',AT='"Atkinson Hyperlegible",Arial,sans-serif';
 const V={
-blau:{name:'Blau',field:{y:330,c:C.bf,e:C.g},
+blau:{name:'Blau',field:{y:330,c:C.bf,e:C.g,bs:1.5,es:7},
  bands:[['bzb',-193,145,700,C.bb],['bkg',387,610,317,C.g]],
  lines:[[347,42,240,225,C.bb],[460,398,382,395,'#fff'],[245,535,335,740,'#fff']],
  tx:{title:['Hackathon'],sub:['Für alle vom CJD Sickingenstraße'],claim:['Dein CJD braucht','Deine Ideen'],cta:['Melde dich jetzt an!']},
  P:{title:[355,92,70,C.tx],sub:[355,123,21,C.tx],claim:[460,430,29,'#fff'],cta:[460,496,17,'#fff'],dates:[23,570,53,'#fff'],foot:[153,1041,10,C.tx]}},
-gruen:{name:'Grün',field:{y:585,c:C.g,e:C.bf},
- bands:[['glo',-70,0,380,C.g],['gl',-323,65,520,C.g],['gzb',217,250,752,C.bb]],
+gruen:{name:'Grün',field:{y:585,c:C.g,e:C.bf,bs:1.5,es:7},
+ bands:[['glo',-70,0,380,C.g],['gl',-323,65,520,C.g],['gzg',217,250,752,C.g,'gzb',C.bb]],
  lines:[[347,42,157,190,C.g],[419,355,337,310,C.g],[257,638,517,750,'#fff']],
  tx:{title:['Keine Lust','mehr'],sub:['auf Ruhepause auf der Toilette?'],claim:['Dein CJD braucht Deine','Ideen'],cta:['Hackathon - für alle vom CJD','Sickingenstraße. Melde dich jetzt an!']},
  P:{title:[357,88,70,C.tx],sub:[357,195,24,C.tx],claim:[420,377,24,C.tx],cta:[420,435,17,C.tx],dates:[33,675,53,'#fff'],foot:[153,1041,10,C.tx]}}};
@@ -170,12 +172,12 @@ const init=k=>{const v=V[k],o={};v.bands.forEach(b=>o[b[0]]={x:b[1],y:b[2],s:b[3
 const el=(n,a,p)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e};
 function txt(p,x,y,fs,fill,lines,font,wt,ls){const t=el('text',{x,y,'font-size':fs,fill,'font-family':font,'font-weight':wt,'letter-spacing':ls||0},p);lines.forEach((l,i)=>{const s=el('tspan',{x,dy:i?fs*1.15:0},t);s.textContent=l});return t}
 function render(){const v=V[cur],s=S[cur];
- const f=$('#fld');f.setAttribute('x',0);f.setAttribute('y',v.field.y);f.setAttribute('width',755);f.setAttribute('height',938-v.field.y);f.setAttribute('fill',v.field.c);
- for(const [id,y] of [['et',v.field.y],['eb',926]]){const r=$('#'+id);r.setAttribute('x',0);r.setAttribute('y',y);r.setAttribute('width',755)}
- const top=id=>id=='et';$('#gt0').setAttribute('stop-color',v.field.e);$('#gt1').setAttribute('stop-color',v.field.c);$('#gb0').setAttribute('stop-color',v.field.c);$('#gb1').setAttribute('stop-color',v.field.e);
+  const FB=938,f=$('#fld');
+ for(const [r,y,h,c] of [[f,v.field.y,FB-v.field.y,v.field.c],[$('#gt2'),v.field.y-11,22,v.field.e],[$('#gb2'),FB-11,22,v.field.e]]){r.setAttribute('x',-80);r.setAttribute('width',915);r.setAttribute('y',y);r.setAttribute('height',h);r.setAttribute('fill',c)}
+ $('#fsb').setAttribute('stdDeviation',v.field.bs);$('#fgb').setAttribute('stdDeviation',v.field.es);
  const bl=$('#bl');bl.innerHTML='';
  v.bands.forEach(b=>{const o=s[b[0]],g=el('g',{transform:`translate(${o.x} ${o.y}) scale(${o.s})`,'data-id':b[0],class:'hd'},bl);
-  g.appendChild(bandGraphic(b[0],b[4],o.s));});
+  g.appendChild(bandGraphic(b[0],b[4],o.s));if(b[5])g.appendChild(bandGraphic(b[5],b[6],o.s,true));});
  const ln=$('#ln');ln.innerHTML='';s.lines.forEach((l,i)=>el('line',{x1:l[0],y1:l[1],x2:l[2],y2:l[3],stroke:v.lines[i][4]},ln));
  const tx=$('#tx');tx.innerHTML='';const P=v.P,T=s.tx;
  const G=(id,fn)=>{const g=el('g',{transform:`translate(${s[id].x} ${s[id].y}) scale(${s[id].s})`,'data-id':id,class:'hd'},tx);fn(g)};
