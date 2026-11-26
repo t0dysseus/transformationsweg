@@ -66,12 +66,20 @@ async function loadSVGAsset(id,filename){
   const viewBox=parseViewBox(root);
   const bounds=BAND_BOUNDS[id] || null;
   if(bounds) BW[id]=bounds.width;
-  // SVG-Dateien können Gruppen mit oder ohne explizit auflösbaren Namespace enthalten.
-  // Deshalb über localName suchen; die Elemente werden beim Klonen in den SVG-Namespace überführt.
-  const groups=Array.from(root.getElementsByTagName('*')).filter(el=>el.localName==='g');
-  const graphicGroup=groups.length ? groups[0] : null;
-  if(['gl','glo','gzb','bzb','bkg','gzg'].includes(id) && !graphicGroup)
-    throw new Error(filename+' (keine Grafikgruppe <g> gefunden; SVG-Elemente: '+Array.from(root.getElementsByTagName('*')).slice(0,12).map(el=>el.localName).join(', ')+')');
+  // Die gelieferten Band-SVGs enthalten ihre drei Grafikpfade direkt
+  // unter <svg> und KEINE umschließende <g>-Gruppe. Daher bauen wir
+  // hier eine eigene SVG-Gruppe und übernehmen alle direkten Grafik-Kinder.
+  let graphicGroup=null;
+  if(['gl','glo','gzb','bzb','bkg','gzg'].includes(id)){
+    graphicGroup=document.createElementNS(NS,'g');
+    const graphicChildren=Array.from(root.children).filter(el=>
+      el.localName==='path' || el.localName==='g'
+    );
+    graphicChildren.forEach(el=>graphicGroup.appendChild(cloneAsSvg(el)));
+    const pathCount=graphicGroup.getElementsByTagNameNS(NS,'path').length;
+    if(!pathCount)
+      throw new Error(filename+' (keine Pfade <path> in der SVG-Datei gefunden)');
+  }
   ASSETS[id]={doc,root,viewBox,bounds,graphicGroup};
 }
 async function loadAssets(){
