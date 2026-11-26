@@ -28,7 +28,7 @@ label.l{display:block;font-size:12px;color:var(--mut);margin:8px 0 3px}textarea{
 <div class="sl"><span>Linien</span><input type="range" id="lw" min=".3" max="3" step=".05"><output id="lwo"></output></div>
 <div class="chips" style="margin-top:10px"><button id="bh">Linien-Griffe</button><button id="br">Zurücksetzen</button></div><p style="font-size:12px;color:var(--mut)">Elemente lassen sich auch direkt im Plakat ziehen.</p></details></div></div>
 <script>
-const $=s=>document.querySelector(s),NS='http://www.w3.org/2000/svg',BW={"gl":1600,"glo":1569,"gzb":1600,"bzb":1439,"bkg":1600};
+const $=s=>document.querySelector(s),NS='http://www.w3.org/2000/svg',BW={};
 const ASSET_FILES={
   moe:'moebius_Logo_Raeume.svg',
   bht:'BHT_Logo_vertikal_Anthrazit_transparent.svg',
@@ -39,17 +39,35 @@ const ASSET_FILES={
   bkg:'plakat_blau_band_klein_gruen_v01.svg',
   gzg:'plakat_gruen_band_zentral_gruen_v01.svg'
 };
+const BAND_BOUNDS={
+  gl:{x:207.037,y:11.945,width:776.477,height:776.364},
+  glo:{x:281.846,y:83.167,width:626.859,height:639.383},
+  gzb:{x:2.757,y:167.018,width:1175.794,height:937.694},
+  bzb:{x:203.118,y:123.886,width:784.315,height:871.876},
+  bkg:{x:123.141,y:314.626,width:352.797,height:262.962},
+  gzg:{x:2.757,y:167.018,width:1175.794,height:937.694}
+};
 const ASSETS={};
+function parseViewBox(root){
+  const raw=root.getAttribute('viewBox');
+  if(!raw) throw new Error('viewBox fehlt');
+  const v=raw.trim().split(/[ ,]+/).map(Number);
+  if(v.length!==4 || v.some(n=>!Number.isFinite(n))) throw new Error('viewBox ungültig');
+  return v;
+}
 async function loadSVGAsset(id,filename){
   const response=await fetch('input/'+filename);
   if(!response.ok) throw new Error(filename+' (HTTP '+response.status+')');
   const source=await response.text();
   const doc=new DOMParser().parseFromString(source,'image/svg+xml');
-  if(doc.querySelector('parsererror') || doc.documentElement.localName!=='svg') throw new Error(filename+' (ungültige SVG-Datei)');
   const root=doc.documentElement;
-  const vb=root.getAttribute('viewBox');
-  if(!vb) throw new Error(filename+' (viewBox fehlt)');
-  ASSETS[id]={viewBox:vb,content:Array.from(root.childNodes).map(n=>new XMLSerializer().serializeToString(n)).join('')};
+  if(doc.querySelector('parsererror') || root.localName!=='svg') throw new Error(filename+' (ungültige SVG-Datei)');
+  const viewBox=parseViewBox(root);
+  const bounds=BAND_BOUNDS[id] || null;
+  if(bounds) BW[id]=bounds.width;
+  if(['gl','glo','gzb','bzb','bkg','gzg'].includes(id) && !root.querySelector('g'))
+    throw new Error(filename+' (keine Grafikgruppe gefunden)');
+  ASSETS[id]={doc,root,viewBox,bounds};
 }
 async function loadAssets(){
   const status=$('#assetStatus');
@@ -60,13 +78,36 @@ async function loadAssets(){
   if(failed.length){
     status.textContent='SVG-Dateien konnten nicht geladen werden: '+failed.join(' · ');
     status.style.color='#b42318';
-    throw new Error(failed.join('\n'));
+    throw new Error(failed.join('\\n'));
   }
   status.textContent='';
 }
-function assetMarkup(id,extra=''){
-  const a=ASSETS[id],vb=a.viewBox.trim().split(/[ ,]+/).map(Number);
-  return `<svg xmlns="${NS}" x="0" y="0" width="${vb[2]}" height="${vb[3]}" viewBox="${a.viewBox}" preserveAspectRatio="none" ${extra}>${a.content}</svg>`;
+function makeNestedSVG(id,viewBox,width,height,children){
+  const svg=document.createElementNS(NS,'svg');
+  svg.setAttribute('x','0'); svg.setAttribute('y','0');
+  svg.setAttribute('width',String(width)); svg.setAttribute('height',String(height));
+  svg.setAttribute('viewBox',viewBox.join(' '));
+  svg.setAttribute('preserveAspectRatio','none');
+  children.forEach(n=>svg.appendChild(n));
+  return svg;
+}
+function bandGraphic(id,color,scale){
+  const a=ASSETS[id],b=a.bounds;
+  const sourceGroup=a.root.querySelector('g');
+  const group=document.importNode(sourceGroup,true);
+  group.querySelectorAll('path').forEach(path=>{
+    const originalWidth=parseFloat(path.style.strokeWidth || path.getAttribute('stroke-width') || '0.3');
+    path.style.setProperty('stroke',color);
+    path.style.setProperty('fill','none');
+    path.style.setProperty('stroke-width',((originalWidth>=1 ? 1 : .55)*LW/scale)+'px');
+  });
+  const svg=makeNestedSVG(id,[b.x,b.y,b.width,b.height],b.width,b.height,[group]);
+  return svg;
+}
+function logoGraphic(id){
+  const a=ASSETS[id],v=a.viewBox;
+  const children=Array.from(a.root.childNodes).filter(n=>n.nodeType===1 || (n.nodeType===3 && n.textContent.trim())).map(n=>document.importNode(n,true));
+  return makeNestedSVG(id,v,v[2],v[3],children);
 }
 const C={tx:'#333333',g:'#96C21B',bf:'#2C9BD2',bb:'#0D4E6E',w:'#fff'};
 const PL='"IBM Plex Sans",Arial,sans-serif',AT='"Atkinson Hyperlegible",Arial,sans-serif';
@@ -85,7 +126,7 @@ const DT=[['02.12.26','Pausenraum für alle.'],['04.12.26','Das CJD sichtbar mac
 const FM={A2:[420,594],A3:[297,420],A4:[210,297],A5:[148,210]};let fmt='A4',cur='blau',sel='title',edit=false,LW=1,S={};
 const init=k=>{const v=V[k],o={};v.bands.forEach(b=>o[b[0]]={x:b[1],y:b[2],s:b[3]/BW[b[0]]});o.moe={x:25,y:968,s:104/4000};o.bht={x:690,y:952,s:100/243};
  for(const t in v.P)o[t]={x:0,y:0,s:1};o.lines=v.lines.map(l=>l.slice(0,4));o.tx=JSON.parse(JSON.stringify(v.tx));o.dt=DT.map(d=>d.slice());return o};
-for(const k in V)S[k]=init(k);
+
 const el=(n,a,p)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e};
 function txt(p,x,y,fs,fill,lines,font,wt,ls){const t=el('text',{x,y,'font-size':fs,fill,'font-family':font,'font-weight':wt,'letter-spacing':ls||0},p);lines.forEach((l,i)=>{const s=el('tspan',{x,dy:i?fs*1.15:0},t);s.textContent=l});return t}
 function render(){const v=V[cur],s=S[cur];
@@ -94,10 +135,7 @@ function render(){const v=V[cur],s=S[cur];
  const top=id=>id=='et';$('#gt0').setAttribute('stop-color',v.field.e);$('#gt1').setAttribute('stop-color',v.field.c);$('#gb0').setAttribute('stop-color',v.field.c);$('#gb1').setAttribute('stop-color',v.field.e);
  const bl=$('#bl');bl.innerHTML='';
  v.bands.forEach(b=>{const o=s[b[0]],g=el('g',{transform:`translate(${o.x} ${o.y}) scale(${o.s})`,'data-id':b[0],class:'hd'},bl);
-  const sk=b[4],content=assetMarkup(b[0]);
-  const parsed=new DOMParser().parseFromString(content,'image/svg+xml').documentElement;
-  const inner=Array.from(parsed.childNodes).map(n=>new XMLSerializer().serializeToString(n)).join('');
-  g.innerHTML=`<g stroke="${sk}" fill="none" stroke-linejoin="round" style="--k:${LW}">`+inner.replace(/class="m"/g,`stroke-width="${.55*LW/o.s}"`).replace(/class="e"/g,`stroke-width="${1*LW/o.s}"`)+'</g>'});
+  g.appendChild(bandGraphic(b[0],b[4],o.s));});
  const ln=$('#ln');ln.innerHTML='';s.lines.forEach((l,i)=>el('line',{x1:l[0],y1:l[1],x2:l[2],y2:l[3],stroke:v.lines[i][4]},ln));
  const tx=$('#tx');tx.innerHTML='';const P=v.P,T=s.tx;
  const G=(id,fn)=>{const g=el('g',{transform:`translate(${s[id].x} ${s[id].y}) scale(${s[id].s})`,'data-id':id,class:'hd'},tx);fn(g)};
@@ -108,7 +146,7 @@ function render(){const v=V[cur],s=S[cur];
  G('dates',g=>s.dt.forEach((d,i)=>{txt(g,P.dates[0],P.dates[1]+i*90,53,P.dates[3],[d[0]],AT,700);txt(g,P.dates[0],P.dates[1]+i*90+26,17,P.dates[3],[d[1]],PL,400)}));
  const fx=$('#fx');fx.innerHTML='';
  const L=(id,inner,fn)=>{const o=s[id],g=el('g',{transform:`translate(${o.x} ${o.y}) scale(${o.s})`,'data-id':id,class:'hd'},fx);fn(g)};
- L('moe',0,g=>{g.innerHTML=assetMarkup('moe')});L('bht',0,g=>{g.innerHTML=assetMarkup('bht')});
+ L('moe',0,g=>{g.appendChild(logoGraphic('moe'))});L('bht',0,g=>{g.appendChild(logoGraphic('bht'))});
  G('foot',g=>txt(g,P.foot[0],P.foot[1],P.foot[2],P.foot[3],['In Zusammenarbeit mit dem Masterstudiengang Transformation Design & Print der BHT'],'Arial,sans-serif',400));
  $('#fx').appendChild($('#tx').lastChild);
  const hl=$('#hl');hl.innerHTML='';if(edit)s.lines.forEach((l,i)=>[0,2].forEach(j=>{const c=el('circle',{cx:l[j],cy:l[j+1],r:7,fill:'#ff0','fill-opacity':.7,stroke:'#000','stroke-width':1,'data-l':i,'data-j':j},hl);c.style.cursor='move'}));
@@ -135,5 +173,5 @@ function svgOut(){const c=$('#pz').cloneNode(true);c.querySelector('#hl').remove
 $('#bsv').onclick=async()=>{const fn='plakat_'+cur+'_'+fmt+'.svg',data=svgOut();try{if(window.claude&&claude.use){const d=await claude.use('downloads');if(d){await d.save({filename:fn,data});return}}}catch(e){}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'image/svg+xml'}));a.download=fn;a.click()};
 function fch(){const h=$('#fc');h.innerHTML='';for(const k in FM){const b=document.createElement('button');b.textContent=k+' ('+FM[k][0]+' x '+FM[k][1]+' mm)';b.className=k==fmt?'on':'';b.onclick=()=>{fmt=k;fch()};h.appendChild(b)}}
 $('#bpr').onclick=()=>{let st=$('#pgs');if(!st){st=document.createElement('style');st.id='pgs';document.head.appendChild(st)}st.textContent='@media print{@page{size:'+FM[fmt][0]+'mm '+FM[fmt][1]+'mm;margin:0}}';try{window.print()}catch(e){}};
-loadAssets().then(()=>{render();ctl();fch()}).catch(err=>{console.error(err);$('#assetStatus').title=err.message});
+loadAssets().then(()=>{for(const k in V)S[k]=init(k);render();ctl();fch()}).catch(err=>{console.error(err);$('#assetStatus').title=err.message});
 </script></body></html>
