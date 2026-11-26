@@ -65,8 +65,9 @@ async function loadSVGAsset(id,filename){
   const viewBox=parseViewBox(root);
   const bounds=BAND_BOUNDS[id] || null;
   if(bounds) BW[id]=bounds.width;
-  // SVGs werden als XML geparst: Gruppen deshalb namespace-bewusst suchen.
-  const groups=root.getElementsByTagNameNS(NS,'g');
+  // SVG-Dateien können Gruppen mit oder ohne explizit auflösbaren Namespace enthalten.
+  // Deshalb über localName suchen; die Elemente werden beim Klonen in den SVG-Namespace überführt.
+  const groups=Array.from(root.getElementsByTagName('*')).filter(el=>el.localName==='g');
   const graphicGroup=groups.length ? groups[0] : null;
   if(['gl','glo','gzb','bzb','bkg','gzg'].includes(id) && !graphicGroup)
     throw new Error(filename+' (keine SVG-Grafikgruppe im Namespace '+NS+' gefunden)');
@@ -94,11 +95,23 @@ function makeNestedSVG(id,viewBox,width,height,children){
   children.forEach(n=>svg.appendChild(n));
   return svg;
 }
+function cloneAsSvg(node){
+  if(node.nodeType===Node.TEXT_NODE) return document.createTextNode(node.nodeValue);
+  if(node.nodeType===Node.COMMENT_NODE) return document.createComment(node.nodeValue);
+  if(node.nodeType!==Node.ELEMENT_NODE) return document.createDocumentFragment();
+  const copy=document.createElementNS(NS,node.localName);
+  Array.from(node.attributes).forEach(attr=>{
+    if(attr.namespaceURI) copy.setAttributeNS(attr.namespaceURI,attr.name,attr.value);
+    else if(attr.name!=='xmlns' && !attr.name.startsWith('xmlns:')) copy.setAttribute(attr.name,attr.value);
+  });
+  Array.from(node.childNodes).forEach(child=>copy.appendChild(cloneAsSvg(child)));
+  return copy;
+}
 function bandGraphic(id,color,scale){
   const a=ASSETS[id],b=a.bounds;
-  const group=document.importNode(a.graphicGroup,true);
-  const paths=group.getElementsByTagNameNS(NS,'path');
-  Array.from(paths).forEach(path=>{
+  const group=cloneAsSvg(a.graphicGroup);
+  const paths=Array.from(group.getElementsByTagName('*')).filter(el=>el.localName==='path');
+  paths.forEach(path=>{
     const originalWidth=parseFloat(path.style.strokeWidth || path.getAttribute('stroke-width') || '0.3');
     path.style.setProperty('stroke',color);
     path.style.setProperty('fill','none');
