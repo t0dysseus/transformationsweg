@@ -214,11 +214,13 @@ canvas.addEventListener('wheel',function(e){
 },{passive:false});
 
 /* Bewegung: Drehung um die Längsachse und Drehteller um sich selbst. R schaltet alles an/aus (auch bei offener Beschriftung).
-   S richtet den Cone so aus, dass die blaue Seite zur Kamera zeigt, und fährt geradeaus in den Cone zum Mittelpunkt; nochmal S = zurück. */
+   S richtet den Cone so aus, dass die blaue Seite zur Kamera zeigt, und fährt geradeaus in den Cone zum Mittelpunkt; nochmal S = zurück.
+   D stoppt die Rotation, nimmt erst die Anfangsposition wie bei S ein, zoomt auf den Mittelpunkt, verharrt kurz, fährt durch den
+   gegenüberliegenden Kegel zur exakten Gegenseite von S, kehrt zur Gesamtansicht zurück und startet dann wieder die Rotation. */
 var force=null,anim=null,focused=false,home={theta:0.45,phi:1.25,dist:26},lastT=performance.now();
 function isMoving(){return force!==null?force:!tags.some(function(t){return t.on;});}
 function ang(a,b){var d=(b-a)%(2*Math.PI);if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;return d;}
-function flyTo(segs){anim={segs:segs,i:0};}
+function flyTo(segs,onDone){anim={segs:segs,i:0,onDone:onDone||null};}
 function toggleFocus(){
   if(focused){
     focused=false;force=null;
@@ -228,11 +230,27 @@ function toggleFocus(){
     flyTo([{to:{theta:0,phi:Math.PI/2,ry:Math.PI/2,my:Math.PI},dur:2.4},{to:{dist:3},dur:2.2}]);
   }
 }
+function runPassThrough(){
+  focused=false;
+  force=false;
+  flyTo([
+    {to:{theta:0,phi:Math.PI/2,ry:Math.PI/2,my:Math.PI},dur:2.4},
+    {to:{dist:3},dur:2.2},
+    {to:{dist:0.8},dur:1.6},
+    {to:{},dur:1.5},
+    {to:{theta:Math.PI,phi:Math.PI/2,ry:Math.PI/2,my:Math.PI,dist:home.dist},dur:2.8},
+    {to:{dist:home.dist},dur:1.5},
+    {to:{theta:home.theta,phi:home.phi,ry:0},dur:2.2}
+  ],function(){
+    force=true;
+  });
+}
 window.addEventListener('keydown',function(e){
   if(e.ctrlKey||e.metaKey||e.altKey)return;
   var k=e.key.toLowerCase();
   if(k==='r'){var m=isMoving();force=!m;if(!m){focused=false;anim=null;}}
   else if(k==='s'){toggleFocus();}
+  else if(k==='d'){runPassThrough();}
 });
 canvas.addEventListener('pointerdown',function(){anim=null;});
 canvas.addEventListener('wheel',function(){anim=null;},{passive:true});
@@ -248,7 +266,14 @@ canvas.addEventListener('wheel',function(){anim=null;},{passive:true});
     if(o.dist!==undefined)dist=f.dist*Math.pow(o.dist/f.dist,e);
     if(o.ry!==undefined)rig.rotation.y=f.ry+ang(f.ry,o.ry)*e;
     if(o.my!==undefined)model.rotation.y=f.my+ang(f.my,o.my)*e;
-    if(k>=1){anim.i++;if(anim.i>=anim.segs.length)anim=null;}
+    if(k>=1){
+      anim.i++;
+      if(anim.i>=anim.segs.length){
+        var done=anim.onDone;
+        anim=null;
+        if(done)done();
+      }
+    }
   }else if(isMoving()&&Object.keys(ptrs).length===0){
     model.rotation.y+=dt*0.3;
     rig.rotation.y+=dt*0.14;
@@ -259,3 +284,6 @@ canvas.addEventListener('wheel',function(){anim=null;},{passive:true});
 </script>
 </body>
 </html>
+```[cite: 1]
+
+Passt der Ablauf so genau zu Ihrer Vorstellung, oder soll die Rückkehr zur Gesamtansicht (`home`) noch etwas schneller/direkter sein?
