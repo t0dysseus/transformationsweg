@@ -66,19 +66,26 @@ async function loadSVGAsset(id,filename){
   const viewBox=parseViewBox(root);
   const bounds=BAND_BOUNDS[id] || null;
   if(bounds) BW[id]=bounds.width;
-  // Die gelieferten Band-SVGs enthalten ihre drei Grafikpfade direkt
-  // unter <svg> und KEINE umschließende <g>-Gruppe. Daher bauen wir
-  // hier eine eigene SVG-Gruppe und übernehmen alle direkten Grafik-Kinder.
+  // Originale SVG-Grafikgruppe direkt übernehmen. Falls eine Datei
+  // stattdessen direkte Pfade enthält, diese nur als Fallback gruppieren.
   let graphicGroup=null;
   if(['gl','glo','gzb','bzb','bkg','gzg'].includes(id)){
-    graphicGroup=document.createElementNS(NS,'g');
-    const graphicChildren=Array.from(root.children).filter(el=>
-      el.localName==='path' || el.localName==='g'
-    );
-    graphicChildren.forEach(el=>graphicGroup.appendChild(cloneAsSvg(el)));
-    const pathCount=graphicGroup.getElementsByTagNameNS(NS,'path').length;
-    if(!pathCount)
-      throw new Error(filename+' (keine Pfade <path> in der SVG-Datei gefunden)');
+    const groups=Array.from(root.getElementsByTagName('*')).filter(el=>el.localName==='g');
+    if(groups.length){
+      graphicGroup=cloneAsSvg(groups[0]);
+    }else{
+      const directPaths=Array.from(root.children).filter(el=>el.localName==='path');
+      if(directPaths.length){
+        graphicGroup=document.createElementNS(NS,'g');
+        directPaths.forEach(el=>graphicGroup.appendChild(cloneAsSvg(el)));
+      }
+    }
+    if(!graphicGroup) throw new Error(filename+' (keine Grafikgruppe und keine direkten Pfade gefunden)');
+    // Präsentationsattribute des SVG-Wurzelelements gelten auch für die Gruppe.
+    const rootStyle=root.getAttribute('style');
+    if(rootStyle) graphicGroup.setAttribute('style',[rootStyle,graphicGroup.getAttribute('style')||''].filter(Boolean).join(';'));
+    const pathCount=Array.from(graphicGroup.getElementsByTagName('*')).filter(el=>el.localName==='path').length;
+    if(!pathCount) throw new Error(filename+' (keine Pfade <path> in der Grafik gefunden)');
   }
   ASSETS[id]={doc,root,viewBox,bounds,graphicGroup};
 }
@@ -118,16 +125,24 @@ function cloneAsSvg(node){
 }
 function bandGraphic(id,color,scale){
   const a=ASSETS[id],b=a.bounds;
-  const group=cloneAsSvg(a.graphicGroup);
+  // Kein inneres <svg> mit eigenem viewBox: Das würde die Grafik an
+  // einem zusätzlichen Rechteck beschneiden. Stattdessen bleibt die
+  // Original-Geometrie erhalten und wird nur um ihren Zeichenbereich
+  // verschoben. Die äußere Plakat-Transformation übernimmt die Skalierung.
+  const group=document.createElementNS(NS,'g');
+  group.setAttribute('transform',`translate(${-b.x} ${-b.y})`);
+  const original=cloneAsSvg(a.graphicGroup);
+  group.appendChild(original);
   const paths=Array.from(group.getElementsByTagName('*')).filter(el=>el.localName==='path');
   paths.forEach(path=>{
-    const originalWidth=parseFloat(path.style.strokeWidth || path.getAttribute('stroke-width') || '0.3');
+    const style=path.getAttribute('style')||'';
+    const widthMatch=style.match(/(?:^|;)\s*stroke-width\s*:\s*([0-9.]+)/i);
+    const originalWidth=parseFloat(widthMatch?.[1] || path.getAttribute('stroke-width') || '0.3');
     path.style.setProperty('stroke',color);
     path.style.setProperty('fill','none');
     path.style.setProperty('stroke-width',((originalWidth>=1 ? 1 : .55)*LW/scale)+'px');
   });
-  const svg=makeNestedSVG(id,[b.x,b.y,b.width,b.height],b.width,b.height,[group]);
-  return svg;
+  return group;
 }
 function logoGraphic(id){
   const a=ASSETS[id],v=a.viewBox;
