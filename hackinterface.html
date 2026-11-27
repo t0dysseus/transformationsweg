@@ -3,110 +3,73 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Hackathon Sprint-Cockpit</title>
+<title>Hackathon-Planer</title>
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{
-  --lime:#a0be38;--sky:#a9d4ee;--teal:#0a4d74;--ink:#10283a;
-  --bg:#eef5fa;--card:#ffffff;--fg:#26292b;--mut:#566673;--bd:#c9dbe7;
-  --soft:#e3f0f8;--pri:#0a4d74;--prif:#ffffff;--clock:#2b78ad;--okc:#4d6609;
-  --warn:#d97706;--ok:#15803d;color-scheme:light;
-}
-:root[data-theme="dark"]{
-  --bg:#0d1a22;--card:#14242e;--fg:#e9f1f5;--mut:#9db3c0;--bd:#2a4150;
-  --soft:#1b3444;--pri:#b4d04a;--prif:#10200a;--clock:#1f5f8c;--okc:#b4d04a;
-  color-scheme:dark;
-}
-*{box-sizing:border-box}
-html,body{margin:0}
-body{background:var(--bg);color:var(--fg);font:15px/1.5 "Atkinson Hyperlegible",system-ui,-apple-system,sans-serif}
-:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
-:root[data-theme="dark"] :focus-visible{outline-color:var(--sky)}
-.wrap{max-width:1240px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:14px}
-
-/* Hero nach Plakat: Limette-Band zwischen Himmelblau-Streifen */
-.hero{background:var(--lime);color:var(--ink);border-top:12px solid var(--sky);border-bottom:12px solid var(--sky);position:relative;overflow:hidden}
-.hero :focus-visible{outline-color:var(--ink)}
-.ribbon{position:absolute;right:-60px;top:50%;transform:translateY(-50%);width:min(640px,58vw);height:auto;pointer-events:none}
-.hero-in{position:relative;max-width:1240px;margin:0 auto;padding:26px 16px 28px}
-.hero-top{display:flex;flex-wrap:wrap;gap:18px 28px;align-items:center;justify-content:space-between}
-.brand{display:flex;align-items:center;gap:22px}
-.logo{width:clamp(96px,13vw,150px);height:auto;color:#1d1d1b;flex:none;display:block}
-.brand h1{font:700 clamp(30px,5vw,58px)/1.02 "IBM Plex Sans",system-ui,sans-serif;letter-spacing:-.02em;margin:0 0 10px;color:#26292b}
-.badge{display:inline-block;background:var(--ink);color:#fff;font-size:13px;font-weight:700;padding:4px 12px;border-radius:3px}
-.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-button,select{font:inherit;font-size:13px;border:1.5px solid var(--bd);background:var(--card);color:var(--fg);border-radius:4px;padding:6px 13px;cursor:pointer;transition:.15s}
-button:hover{border-color:var(--pri)}
-button.pri{background:var(--pri);color:var(--prif);border-color:var(--pri);font-weight:700}
-.hero .chips button{background:rgba(255,255,255,.85);color:var(--ink);border-color:var(--ink)}
-.hero .chips button:hover{background:#fff}
-
-/* Datums-Reiter wie die Plakat-Termine */
-#hackTabs{display:flex;flex-wrap:wrap;gap:12px 14px;margin-top:26px}
-#hackTabs button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:transparent;color:var(--ink);border:2px solid rgba(16,40,58,.4);border-radius:4px;padding:10px 18px 11px;min-width:190px}
-#hackTabs button b{font:700 clamp(26px,3.6vw,38px)/1 "Atkinson Hyperlegible",sans-serif;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
-#hackTabs button span{font-size:14px}
-#hackTabs button:hover{border-color:var(--ink)}
-#hackTabs button.on{background:var(--teal);border-color:var(--teal);color:#fff}
-
-/* Timer */
-.timer-card{background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:14px 16px;display:grid;grid-template-columns:240px 1fr auto;gap:16px;align-items:center}
-@media(max-width:860px){.timer-card{grid-template-columns:1fr}}
-.clock-box{background:var(--clock);color:#fff;border-radius:4px;padding:12px 16px;display:flex;flex-direction:column;gap:2px}
-.clock-time{font:700 34px/1.1 "IBM Plex Sans",sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-.clock-sub{font-size:12.5px;opacity:.95}
-.phases{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
-@media(max-width:680px){.phases{grid-template-columns:1fr}}
-.phase{border:1.5px solid var(--bd);border-radius:4px;padding:8px 10px;cursor:pointer;background:var(--bg);transition:.15s}
-.phase:hover{border-color:var(--pri)}
-.phase.active{border-color:var(--pri);background:var(--pri);color:var(--prif)}
-.phase .p-time{font-size:11.5px;font-weight:700;color:var(--mut);font-variant-numeric:tabular-nums}
-.phase .p-name{font:700 14px "IBM Plex Sans",sans-serif;margin-top:2px}
-.phase .p-hint{font-size:11.5px;color:var(--mut);margin-top:2px;line-height:1.25}
-.phase.active .p-time,.phase.active .p-hint{color:inherit;opacity:.9}
-
-/* Grid */
-.grid{display:grid;grid-template-columns:1.35fr 1fr;gap:14px;align-items:start}
-@media(max-width:860px){.grid{grid-template-columns:1fr}}
-.col{display:flex;flex-direction:column;gap:14px}
-.card{background:var(--card);border:1px solid var(--bd);border-top:4px solid var(--lime);border-radius:6px;padding:16px}
-.card h2{font:700 16px "IBM Plex Sans",sans-serif;color:var(--fg);margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
-.card h2 span:last-child:not(:first-child){font:400 13px "Atkinson Hyperlegible",sans-serif;color:var(--mut)}
-label.lbl{display:block;font-size:14px;font-weight:700;margin:14px 0 3px}
-label.lbl:first-of-type{margin-top:4px}
-.guide{font-size:12.5px;color:var(--mut);margin:0 0 6px;line-height:1.4}
-textarea,input[type=text]{width:100%;font:inherit;font-size:14px;background:var(--bg);color:var(--fg);border:1.5px solid var(--bd);border-radius:4px;padding:9px 11px;resize:vertical}
-textarea:focus,input[type=text]:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--soft)}
-:root[data-theme="dark"] textarea:focus,:root[data-theme="dark"] input[type=text]:focus{border-color:var(--sky)}
-
-.roles-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-@media(max-width:520px){.roles-grid{grid-template-columns:1fr}}
-.role-item{background:var(--bg);border:1px solid var(--bd);border-radius:4px;padding:8px 10px}
-.role-item span{display:block;font-size:12px;font-weight:700;color:var(--mut)}
-.role-item input{margin-top:4px;padding:5px 8px;font-size:13px;background:var(--card)}
-
-.chk-list{display:flex;flex-direction:column;gap:7px}
-.chk{display:flex;align-items:flex-start;gap:9px;background:var(--bg);border:1px solid var(--bd);border-radius:4px;padding:8px 10px;cursor:pointer;font-size:13.5px}
-.chk input{margin-top:3px;accent-color:var(--pri);width:16px;height:16px}
-.chk.done{opacity:.65;text-decoration:line-through}
-
-.dec-box{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--soft);border-radius:4px;padding:9px 12px;margin-top:12px}
-.dec-val{font:700 18px "IBM Plex Sans",sans-serif;font-variant-numeric:tabular-nums}
-
-/* Fuß wie Plakat-Fußzeile */
-.foot{background:var(--card);border:1px solid var(--bd);border-bottom:12px solid var(--sky);border-radius:6px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;justify-content:space-between;font-size:13px}
-.foot-id{display:flex;align-items:center;gap:16px;flex:1 1 360px}
-.foot .logo{width:78px;color:var(--fg)}
-.foot-id small{display:block;color:var(--mut);font-size:12.5px;margin-top:2px}
-#msg{font-weight:700;color:var(--okc)}
-
-@media(max-width:700px){.ribbon{display:none}.brand{align-items:flex-start}}
-@media print{
-  .hero .chips,.timer-card button,.dec-box button,.foot .chips{display:none!important}
-  .ribbon{display:none}
-  body{background:#fff;color:#000}
-  .card,.timer-card,.foot{box-shadow:none}
-}
+:root{--sky:#a9d4ee;--lime:#a0be38;--limef:#1b2a06;--bg:#f3f7fa;--card:#fff;--fg:#26292b;--mut:#55636e;--bd:#c9dbe7;--soft:#e3f0f8;--danger:#b42318;color-scheme:light}
+:root[data-theme="dark"]{--bg:#0d1a22;--card:#14242e;--fg:#e9f1f5;--mut:#a3b7c3;--bd:#2f4756;--soft:#1b3444;--lime:#b4d04a;--danger:#ff8a80;color-scheme:dark}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:19px/1.5 "Atkinson Hyperlegible",system-ui,sans-serif}
+:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+h1,h2,h3{font-family:"IBM Plex Sans",system-ui,sans-serif;margin:0;letter-spacing:-.01em}
+.top{background:var(--card);border-top:12px solid var(--sky);border-bottom:1px solid var(--bd)}
+.top-in{max-width:1100px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:16px}
+.logo{width:76px;height:auto;color:var(--fg);flex:none;display:block}
+.top h1{font-size:26px;line-height:1.1}
+.top .day{color:var(--mut);font-size:16px}
+.top .sp{flex:1}
+button{font:inherit;font-size:17px;min-height:48px;padding:8px 20px;border:2px solid var(--fg);background:var(--card);color:var(--fg);border-radius:6px;cursor:pointer}
+button:hover{background:var(--soft)}
+button:disabled{opacity:.45;cursor:default}
+button.next{background:var(--lime);border-color:var(--lime);color:var(--limef);font-weight:700;font-size:20px;padding:8px 28px}
+button.next:hover{filter:brightness(.95);background:var(--lime)}
+button.small{min-height:36px;font-size:15px;padding:3px 12px}
+main{max-width:1100px;margin:0 auto;padding:22px 20px 40px;display:flex;flex-direction:column;gap:22px}
+.status{display:grid;grid-template-columns:minmax(240px,380px) 1fr;gap:12px 32px;align-items:center}
+@media(max-width:760px){.status{grid-template-columns:1fr}}
+.mb{width:100%;height:auto;display:block}
+.mb .base{fill:none;stroke:var(--bd);stroke-width:12}
+.mb .prog{fill:none;stroke:var(--mut);stroke-width:12}
+.mb circle.d{fill:var(--card);stroke:var(--fg);stroke-width:2.5}
+.mb circle.d.past{fill:var(--soft)}
+.mb circle.d.now{fill:var(--fg)}
+.mb text{font:700 13px "Atkinson Hyperlegible",sans-serif;fill:var(--fg);text-anchor:middle;dominant-baseline:central}
+.mb text.now{fill:var(--card)}
+.mb .here{fill:var(--mut)}
+.step{color:var(--mut);font-size:17px}
+.status h2{font-size:clamp(34px,5vw,48px);line-height:1.05;margin:2px 0 4px}
+.times{font-size:22px;font-variant-numeric:tabular-nums}
+.clock{color:var(--mut);font-size:16px;margin-top:6px}
+.nav{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.nav .sp{flex:1}
+.panel{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:26px;display:flex;flex-direction:column;gap:26px}
+.panel[hidden],.ph[hidden]{display:none}
+.ph{display:flex;flex-direction:column;gap:26px}
+.q h3{font-size:24px;margin-bottom:8px}
+textarea,input[type=text]{width:100%;font:inherit;font-size:20px;background:var(--bg);color:var(--fg);border:2px solid var(--bd);border-radius:6px;padding:12px 14px;resize:vertical}
+textarea:focus,input[type=text]:focus{outline:none;border-color:var(--fg)}
+::placeholder{color:var(--mut);opacity:.9}
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:620px){.roles{grid-template-columns:1fr}}
+.roles label{display:block;font-weight:700;font-size:17px;margin-bottom:4px}
+.q h3 .small{float:right;margin-left:10px}
+.chk-list{display:flex;flex-direction:column;gap:10px}
+.chk{display:flex;gap:14px;align-items:flex-start;background:var(--bg);border:2px solid var(--bd);border-radius:6px;padding:14px;cursor:pointer;font-size:20px}
+.chk input{width:26px;height:26px;margin-top:2px;accent-color:var(--fg);flex:none}
+.chk.done{opacity:.7}
+.pause{font-size:26px;color:var(--mut);padding:20px 0}
+#msg{min-height:1.5em;color:var(--mut);font-size:17px}
+dialog{border:2px solid var(--fg);border-radius:10px;background:var(--card);color:var(--fg);padding:0;width:min(560px,94vw);font-size:18px}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+.dlg{padding:24px;display:flex;flex-direction:column;gap:16px}
+.dlg h2{font-size:26px}
+.dlg h3{font-size:18px;margin:6px 0 0}
+.dlg .row{display:flex;flex-direction:column;gap:8px}
+.dlg .days button{text-align:left;display:flex;justify-content:space-between;gap:10px}
+.dlg .days button.on{background:var(--fg);color:var(--card)}
+.danger{border-top:2px solid var(--bd);padding-top:16px}
+.danger button{border-color:var(--danger);color:var(--danger)}
+@media print{.top .sp,.top button,.nav,#msg,.q h3 .small{display:none!important}.ph[hidden]{display:flex!important}.pause{display:none}.panel{border:0;padding:0}.status .mb{max-width:220px}body{background:#fff;color:#000;font-size:14px}}
 #logo path{vector-effect:non-scaling-stroke;stroke-width:.5px!important}
 </style>
 </head>
@@ -1235,354 +1198,226 @@ textarea:focus,input[type=text]:focus{outline:none;border-color:var(--teal);box-
         <text x="237.649px" y="1886.905px" style="font-family:'AtkinsonHyperlegible-Bold', 'Atkinson Hyperlegible',sans-serif;font-weight:700;font-size:288px;">für Jeden</text>
     </g>
 </symbol></svg>
-<header class="hero">
-  <svg class="ribbon" viewBox="0 0 640 240" aria-hidden="true" focusable="false">
-<defs><pattern id="mesh" width="15" height="15" patternUnits="userSpaceOnUse" patternTransform="rotate(-12)">
-<path d="M0 0H15M0 0V15M0 0L15 15" stroke="#0a4d74" stroke-width=".9" fill="none"/></pattern></defs>
-<path d="M0 160C90 40 210 30 310 112S520 200 640 70V118C530 250 400 214 310 160S100 110 0 214Z" fill="url(#mesh)" stroke="#0a4d74" stroke-width="2"/>
-<path d="M40 30L330 150" stroke="#fff" stroke-width="1.5"/>
-</svg>
-  <div class="hero-in">
-    <div class="hero-top">
-      <div class="brand">
-        <svg class="logo" viewBox="0 0 4000 3337" role="img" aria-label="Logo Räume für Jeden"><use href="#logo"/></svg>
-        <div>
-          <h1>Hackathon<br>Sprint-Cockpit</h1>
-          <span class="badge">10:00 – 13:30 Uhr · 100 % Lokal</span>
-        </div>
-      </div>
-      <div class="chips">
-        <button id="bTheme">Hell / Dunkel</button>
-        <button id="bReset">Hack zurücksetzen</button>
-      </div>
-    </div>
-    <div id="hackTabs">
-      <button data-h="0" class="on"><b>02.12.26</b><span>Pausenraum für alle.</span></button>
-      <button data-h="1"><b>04.12.26</b><span>Das CJD sichtbar machen.</span></button>
-      <button data-h="2"><b>11.12.26</b><span>Feedback, das ankommt.</span></button>
-    </div>
-  </div>
-</header>
-<div class="wrap">
-  <!-- LIVE ZEITSTRAHL & PHASEN-TIMER -->
-  <section class="timer-card">
-    <div class="clock-box">
-      <div class="clock-sub" id="phaseLabel">Phase 1 · Einstieg & Zielbild</div>
-      <div class="clock-time" id="countdown">20:00</div>
-      <div class="clock-sub" id="realClock">Uhrzeit: --:--</div>
-    </div>
+<header class="top"><div class="top-in">
+  <svg class="logo" viewBox="0 0 4000 3337" role="img" aria-label="Logo Räume für Jeden"><use href="#logo"/></svg>
+  <div><h1>Hackathon-Planer</h1><div class="day" id="dayLabel"></div></div>
+  <div class="sp"></div>
+  <button id="bSet" aria-haspopup="dialog">Einstellungen</button>
+</div></header>
 
-    <div class="phases" id="phaseList">
-      <div class="phase active" data-min="20" data-title="Phase 1 · Einstieg (10:00–10:20)">
-        <div class="p-time">10:00 – 10:20</div>
-        <div class="p-name">1. Einstieg</div>
-        <div class="p-hint">Thema schärfen & Rollen klären</div>
-      </div>
-      <div class="phase" data-min="70" data-title="Phase 2 · Sprint 1 (10:20–11:30)">
-        <div class="p-time">10:20 – 11:30</div>
-        <div class="p-name">2. Sprint 1</div>
-        <div class="p-hint">Idee & Rohbau erstellen</div>
-      </div>
-      <div class="phase" data-min="30" data-title="Pause (11:30–12:00)">
-        <div class="p-time">11:30 – 12:00</div>
-        <div class="p-name">Pause</div>
-        <div class="p-hint">30 Min. Mittagspause</div>
-      </div>
-      <div class="phase" data-min="65" data-title="Phase 3 · Sprint 2 (12:00–13:05)">
-        <div class="p-time">12:00 – 13:05</div>
-        <div class="p-name">3. Sprint 2</div>
-        <div class="p-hint">Umsetzung & Feinschliff</div>
-      </div>
-      <div class="phase" data-min="25" data-title="Phase 4 · Showcase (13:05–13:30)">
-        <div class="p-time">13:05 – 13:30</div>
-        <div class="p-name">4. Abschluss</div>
-        <div class="p-hint">Vorstellen & Ergebnis sichern</div>
-      </div>
-    </div>
-
-    <div class="chips" style="flex-direction:column;align-items:stretch">
-      <button class="pri" id="bTimerToggle">Timer starten</button>
-      <button id="bTimerReset">Phase neu starten</button>
+<main>
+  <section class="status" aria-label="Wo sind wir gerade?">
+    <svg class="mb" viewBox="0 0 300 130" role="img" aria-label="Zeitverlauf des Tages als Schleife">
+      <path id="mbBase" class="base" d="M150 65C200 0 270 0 270 65C270 130 200 130 150 65C100 0 30 0 30 65C30 130 100 130 150 65Z"/>
+      <path id="mbProg" class="prog" d="M150 65C200 0 270 0 270 65C270 130 200 130 150 65C100 0 30 0 30 65C30 130 100 130 150 65Z"/>
+      <circle id="mbHere" class="here" r="5"/>
+      <g id="mbDots"></g>
+    </svg>
+    <div>
+      <div class="step" id="stepNo"></div>
+      <h2 id="phName"></h2>
+      <div class="times" id="phTime"></div>
+      <div class="clock" id="realClock"></div>
     </div>
   </section>
 
-  <!-- HAUPTBEREICH -->
-  <div class="grid">
-
-    <!-- LINKE SPALTE: ARBEITS-CANVAS (NUR REGIEANWEISUNGEN, KEINE BEISPIELINHALTE) -->
-    <div class="col">
-      <div class="card">
-        <h2><span id="canvasHeader">Hack 1 · Arbeits-Canvas</span><span>Struktur & Fokus</span></h2>
-
-        <label class="lbl">1. Themenbereich & Titel dieses Hacks</label>
-        <p class="guide">Anweisung: Tragt hier den übergeordneten Themenbereich (z. B. Hack 1) und euren gewählten Arbeitstitel ein.</p>
-        <input type="text" data-f="topic" placeholder="[Hier Themenbereich & Arbeitstitel eintragen]">
-
-        <label class="lbl">2. Konkretes Problem / Ausgangslage (max. 2 Sätze)</label>
-        <p class="guide">Anweisung: Beschreibt kurz, was aktuell fehlt, hakt oder gelöst werden soll – ohne schon Lösungen vorwegzunehmen.</p>
-        <textarea rows="2" data-f="problem" placeholder="[Hier Ausgangslage / Problemstellung beschreiben]"></textarea>
-
-        <label class="lbl">3. Zielgruppe & konkreter Nutzen</label>
-        <p class="guide">Anweisung: Für wen genau baut ihr das Ergebnis (z. B. Jugendliche, Mitarbeitende, Standort-Team) und was haben diese Leute konkret davon?</p>
-        <textarea rows="2" data-f="target" placeholder="[Hier Zielgruppe und konkreten Mehrwert eintragen]"></textarea>
-
-        <label class="lbl">4. Unser Tages-Prototyp (Was ist um 13:05 Uhr fertig?)</label>
-        <p class="guide">Anweisung: Legt euch bis 10:20 Uhr auf ein greifbares Ergebnis fest (z. B. ein Konzeptblatt, ein Plakat-/Social-Media-Set aus den Generatoren, ein Ablaufplan oder ein Prototyp).</p>
-        <textarea rows="3" data-f="prototype" placeholder="[Hier festlegen, welches konkrete Artefakt heute entsteht]"></textarea>
-
-        <label class="lbl">5. Kernaussagen / Inhalte für die Umsetzung</label>
-        <p class="guide">Anweisung: Sammelt hier Stichpunkte, Texte, Argumente oder Bausteine, die direkt in euer Ergebnis oder in die Generatoren übernommen werden.</p>
-        <textarea rows="4" data-f="notes" placeholder="[Hier Stichpunkte, Bausteine und Arbeitsergebnisse sammeln]"></textarea>
-      </div>
-    </div>
-
-    <!-- RECHTE SPALTE: TEAM-KOORDINATION, ENTSCHEIDUNGSHILFE & ÜBERGABE -->
-    <div class="col">
-
-      <!-- ROLLEN & FOKUS-WERKZEUGE -->
-      <div class="card">
-        <h2><span>Team-Koordination (Diverse Teams)</span><button id="bShuffleRoles" style="padding:3px 10px;font-size:11px">Rollen mischen</button></h2>
-        <p class="guide">Anweisung: Tragt eure Vornamen ein und verteilt 4 klare Mini-Rollen, damit niemand untergeht und das Tempo stimmt.</p>
-        <div class="roles-grid">
-          <div class="role-item">
-            <span>Zeit & Fokus</span>
-            <input type="text" data-f="rTime" placeholder="[Name eintragen]">
-          </div>
-          <div class="role-item">
-            <span>Prototyp / Tools</span>
-            <input type="text" data-f="rBuild" placeholder="[Name eintragen]">
-          </div>
-          <div class="role-item">
-            <span>Text & Struktur</span>
-            <input type="text" data-f="rText" placeholder="[Name eintragen]">
-          </div>
-          <div class="role-item">
-            <span>Showcase / Pitch</span>
-            <input type="text" data-f="rPitch" placeholder="[Name eintragen]">
-          </div>
-        </div>
-
-        <div class="dec-box">
-          <div>
-            <div style="font-size:12px;font-weight:700">Endlos-Diskussion? 5-Minuten-Entscheidung</div>
-            <div style="font-size:11px;color:var(--mut)">Timer starten, danach per Handzeichen entscheiden.</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="dec-val" id="decClock">05:00</span>
-            <button id="bDecStart">5 Min.</button>
-          </div>
-        </div>
-
-        <label class="lbl" style="margin-top:10px">Themen-Parkplatz (Für später)</label>
-        <p class="guide">Anweisung: Ideen, die heute den 3-Stunden-Rahmen sprengen, hier parken statt ausdiskutieren.</p>
-        <textarea rows="2" data-f="parking" placeholder="[Hier offene Ideen für spätere Termine parken]"></textarea>
-      </div>
-
-      <!-- QUALITÄTS-CHECK & ÜBERGABE -->
-      <div class="card">
-        <h2><span>Abschluss & Übergabe (13:05 – 13:30 Uhr)</span></h2>
-        <div class="chk-list" id="chkList">
-          <label class="chk"><input type="checkbox" data-c="c1"><span>Ziel & Ergebnis sind in 2 Minuten verständlich erklärbar</span></label>
-          <label class="chk"><input type="checkbox" data-c="c2"><span>Mindestens 1 sichtbares Artefakt / Export liegt vor</span></label>
-          <label class="chk"><input type="checkbox" data-c="c3"><span>Nächste Schritte für das nächste Team / CJD sind notiert</span></label>
-        </div>
-
-        <label class="lbl">Übergabe-Notiz für das nächste Team / CJD</label>
-        <p class="guide">Anweisung: Was muss das Team am nächsten Termin wissen? Welche Dateien wurden erzeugt und wo liegen sie?</p>
-        <textarea rows="3" data-f="handover" placeholder="[Hier Zusammenfassung, Dateinamen und offene Punkte eintragen]"></textarea>
-      </div>
-
-    </div>
+  <div class="nav">
+    <button id="bPrev">Zurück</button>
+    <button id="bDec">5 Minuten zum Entscheiden</button>
+    <span class="sp"></span>
+    <button class="next" id="bNext">Nächste Phase</button>
   </div>
+  <div id="msg" role="status" aria-live="polite"></div>
 
+  <div class="panel" id="panel">
+    <section class="ph" data-ph="0">
+      <div class="q"><h3>Worum geht es heute?</h3>
+        <input type="text" data-f="topic" placeholder="z. B. Pausenraum für alle"></div>
+      <div class="q"><h3>Was fehlt oder funktioniert nicht?</h3>
+        <textarea rows="2" data-f="problem" placeholder="z. B. Es gibt keinen ruhigen Ort für die Pause"></textarea></div>
+      <div class="q"><h3>Für wen machen wir das?</h3>
+        <textarea rows="2" data-f="target" placeholder="z. B. Jugendliche, Mitarbeitende"></textarea></div>
+      <div class="q"><h3>Was ist um 13:05 Uhr fertig?</h3>
+        <textarea rows="2" data-f="prototype" placeholder="z. B. ein Plakat oder ein Ablaufplan"></textarea></div>
+      <div class="q"><h3>Wer macht was? <button class="small" id="bShuffleRoles">Neu verteilen</button></h3>
+        <div class="roles">
+          <div><label for="rTime">Zeit im Blick</label><input type="text" id="rTime" data-f="rTime" placeholder="Vorname"></div>
+          <div><label for="rBuild">Umsetzen</label><input type="text" id="rBuild" data-f="rBuild" placeholder="Vorname"></div>
+          <div><label for="rText">Texte</label><input type="text" id="rText" data-f="rText" placeholder="Vorname"></div>
+          <div><label for="rPitch">Vorstellen</label><input type="text" id="rPitch" data-f="rPitch" placeholder="Vorname"></div>
+        </div></div>
+    </section>
 
-  <footer class="foot">
-    <div class="foot-id">
-      <svg class="logo" viewBox="0 0 4000 3337" role="img" aria-label="Logo Räume für Jeden"><use href="#logo"/></svg>
-      <div>In Zusammenarbeit mit dem Masterstudiengang Transformation Design &amp; Print der BHT
-        <small>Alle Eingaben bleiben lokal im Browser (kein Tracking). <span id="msg"></span></small></div>
-    </div>
-    <div class="chips">
-      <button class="pri" id="bExpMd">Ergebnis als Markdown (.md)</button>
-      <button id="bExpJson">Backup (.json)</button>
-      <button onclick="window.print()">Drucken / PDF</button>
-    </div>
-  </footer>
-</div>
+    <section class="ph" data-ph="1,3">
+      <div class="q"><h3>Was kommt in unser Ergebnis?</h3>
+        <textarea rows="6" data-f="notes" placeholder="z. B. Stichpunkte, Texte, Ideen"></textarea></div>
+      <div class="q"><h3>Was machen wir später?</h3>
+        <textarea rows="2" data-f="parking" placeholder="z. B. eine Idee für den nächsten Termin"></textarea></div>
+    </section>
 
+    <section class="ph pause" data-ph="2">Pause. Bis gleich!</section>
+
+    <section class="ph" data-ph="4">
+      <div class="q"><h3>Sind wir bereit?</h3>
+        <div class="chk-list">
+          <label class="chk"><input type="checkbox" data-c="c1"><span>Wir können unser Ergebnis in 2 Minuten erklären</span></label>
+          <label class="chk"><input type="checkbox" data-c="c2"><span>Es gibt etwas zum Anschauen</span></label>
+          <label class="chk"><input type="checkbox" data-c="c3"><span>Die nächsten Schritte sind aufgeschrieben</span></label>
+        </div></div>
+      <div class="q"><h3>Was muss das nächste Team wissen?</h3>
+        <textarea rows="4" data-f="handover" placeholder="z. B. Dateinamen, offene Punkte"></textarea></div>
+    </section>
+  </div>
+</main>
+
+<dialog id="dlg" aria-labelledby="dlgT"><div class="dlg">
+  <h2 id="dlgT">Einstellungen</h2>
+  <div class="row days" id="hackTabs">
+    <h3>Welcher Termin?</h3>
+    <button data-h="0"><b>02.12.26</b><span>Pausenraum für alle.</span></button>
+    <button data-h="1"><b>04.12.26</b><span>Das CJD sichtbar machen.</span></button>
+    <button data-h="2"><b>11.12.26</b><span>Feedback, das ankommt.</span></button>
+  </div>
+  <div class="row"><h3>Aussehen</h3><button id="bTheme">Hell / Dunkel wechseln</button></div>
+  <div class="row"><h3>Speichern</h3>
+    <button id="bExpMd">Ergebnis als Textdatei speichern</button>
+    <button id="bExpJson">Sicherungsdatei speichern</button>
+    <button id="bPrint">Drucken / als PDF</button></div>
+  <div class="row danger"><h3>Vorsicht</h3><button id="bReset">Alle Felder dieses Termins leeren</button></div>
+  <button id="bClose">Schließen</button>
+  <p style="margin:0;font-size:15px;color:var(--mut)">Alle Eingaben bleiben auf diesem Gerät im Browser.</p>
+</div></dialog>
 <script>
-const $=s=>document.querySelector(s);
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const HACK_META=[
-  {label:'Hack 1 · Mi 02.12.2026',short:'Hack 1'},
-  {label:'Hack 2 · Fr 04.12.2026',short:'Hack 2'},
-  {label:'Hack 3 · Fr 11.12.2026',short:'Hack 3'}
-];
-
-const emptyHack=()=>({
-  topic:'',problem:'',target:'',prototype:'',notes:'',
-  rTime:'',rBuild:'',rText:'',rPitch:'',parking:'',handover:'',
-  c1:false,c2:false,c3:false
-});
-
-let S={cur:0,theme:'light',hacks:[emptyHack(),emptyHack(),emptyHack()]};
-try{
-  const saved=JSON.parse(localStorage.getItem('hackathon-cockpit-v1')||'null');
-  if(saved&&Array.isArray(saved.hacks)&&saved.hacks.length===3)S=saved;
-}catch(e){}
+ {label:'Mi 02.12.2026',sub:'Pausenraum für alle.',short:'02.12.'},
+ {label:'Fr 04.12.2026',sub:'Das CJD sichtbar machen.',short:'04.12.'},
+ {label:'Fr 11.12.2026',sub:'Feedback, das ankommt.',short:'11.12.'}];
+const PH=[{n:'Einstieg',t:'10:00 – 10:20',s:0},{n:'Arbeitsphase 1',t:'10:20 – 11:30',s:20},{n:'Pause',t:'11:30 – 12:00',s:90},{n:'Arbeitsphase 2',t:'12:00 – 13:05',s:120},{n:'Abschluss',t:'13:05 – 13:30',s:185}],TOTAL=210;
+const emptyHack=()=>({topic:'',problem:'',target:'',prototype:'',notes:'',rTime:'',rBuild:'',rText:'',rPitch:'',parking:'',handover:'',c1:false,c2:false,c3:false});
+let S={cur:0,phase:0,theme:'light',hacks:[emptyHack(),emptyHack(),emptyHack()]};
+try{const sv=JSON.parse(localStorage.getItem('hackathon-cockpit-v1')||'null');
+ if(sv&&Array.isArray(sv.hacks)&&sv.hacks.length===3){S=sv;if(typeof S.phase!=='number')S.phase=0}}catch(e){}
 const save=()=>{try{localStorage.setItem('hackathon-cockpit-v1',JSON.stringify(S))}catch(e){}};
 const cur=()=>S.hacks[S.cur];
-const msg=t=>{$('#msg').textContent=t;setTimeout(()=>{if($('#msg').textContent===t)$('#msg').textContent=''},3500)};
+const msg=t=>{$('#msg').textContent=t;setTimeout(()=>{if($('#msg').textContent===t)$('#msg').textContent=''},4000)};
 
-// Theme
-function applyTheme(){
-  document.documentElement.setAttribute('data-theme',S.theme);
-}
+function applyTheme(){document.documentElement.setAttribute('data-theme',S.theme)}
 $('#bTheme').onclick=()=>{S.theme=S.theme==='light'?'dark':'light';applyTheme();save()};
 applyTheme();
 
-// Hack Tabs
+// Einstellungen
+const dlg=$('#dlg');
+$('#bSet').onclick=()=>dlg.showModal();
+$('#bClose').onclick=()=>dlg.close();
+dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close()});
+$('#bPrint').onclick=()=>{dlg.close();setTimeout(()=>window.print(),100)};
+
+// Möbiusband als Zeitverlauf
+const mb=$('#mbBase'),LEN=mb.getTotalLength();
+const NS='http://www.w3.org/2000/svg';
+function drawDots(){
+  const g=$('#mbDots');g.innerHTML='';
+  PH.forEach((p,i)=>{
+    const pt=mb.getPointAtLength(LEN*p.s/TOTAL);
+    const c=document.createElementNS(NS,'circle');c.setAttribute('r',12);c.setAttribute('cx',pt.x);c.setAttribute('cy',pt.y);
+    c.setAttribute('class','d'+(i<S.phase?' past':'')+(i===S.phase?' now':''));
+    const t=document.createElementNS(NS,'text');t.setAttribute('x',pt.x);t.setAttribute('y',pt.y);t.textContent=i+1;
+    if(i===S.phase)t.setAttribute('class','now');
+    g.append(c,t);
+  });
+}
+function dayFrac(){
+  const n=new Date(),m=n.getHours()*60+n.getMinutes()-600;
+  return Math.max(0,Math.min(1,m/TOTAL));
+}
+function tick(){
+  const f=dayFrac();
+  $('#mbProg').setAttribute('stroke-dasharray',(LEN*f)+' '+LEN);
+  const pt=mb.getPointAtLength(LEN*f);$('#mbHere').setAttribute('cx',pt.x);$('#mbHere').setAttribute('cy',pt.y);
+  $('#realClock').textContent='Es ist '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Uhr';
+}
+
+// Phasen
+function showPhase(){
+  const p=PH[S.phase];
+  $('#stepNo').textContent='Schritt '+(S.phase+1)+' von '+PH.length;
+  $('#phName').textContent=p.n;$('#phTime').textContent=p.t+' Uhr';
+  $$('.ph').forEach(el=>el.hidden=!el.dataset.ph.split(',').includes(String(S.phase)));
+  $('#panel').hidden=false;
+  $('#bPrev').disabled=S.phase===0;
+  const last=S.phase===PH.length-1;
+  $('#bNext').textContent=last?'Ergebnis speichern':'Nächste Phase';
+  drawDots();tick();save();
+}
+$('#bNext').onclick=()=>{
+  if(S.phase<PH.length-1){S.phase++;showPhase();window.scrollTo({top:0,behavior:'smooth'})}
+  else exportMd();
+};
+$('#bPrev').onclick=()=>{if(S.phase>0){S.phase--;showPhase()}};
+
+// Termin
 function loadHack(idx){
   S.cur=idx;
-  document.querySelectorAll('#hackTabs button').forEach(b=>b.classList.toggle('on',+b.dataset.h===idx));
-  $('#canvasHeader').textContent=HACK_META[idx].label+' · Arbeits-Canvas';
+  $$('#hackTabs button').forEach(b=>b.classList.toggle('on',+b.dataset.h===idx));
+  $('#dayLabel').textContent=HACK_META[idx].label+' · '+HACK_META[idx].sub;
   const h=cur();
-  document.querySelectorAll('[data-f]').forEach(el=>{el.value=h[el.dataset.f]||''});
-  document.querySelectorAll('[data-c]').forEach(el=>{
-    el.checked=!!h[el.dataset.c];
-    el.closest('.chk').classList.toggle('done',el.checked);
-  });
+  $$('[data-f]').forEach(el=>{el.value=h[el.dataset.f]||''});
+  $$('[data-c]').forEach(el=>{el.checked=!!h[el.dataset.c];el.closest('.chk').classList.toggle('done',el.checked)});
   save();
 }
-document.querySelectorAll('#hackTabs button').forEach(b=>b.onclick=()=>loadHack(+b.dataset.h));
+$$('#hackTabs button').forEach(b=>b.onclick=()=>{loadHack(+b.dataset.h);dlg.close()});
 
-// Live Binding
-document.querySelectorAll('[data-f]').forEach(el=>{
-  el.addEventListener('input',()=>{cur()[el.dataset.f]=el.value;save()});
-});
-document.querySelectorAll('[data-c]').forEach(el=>{
-  el.addEventListener('change',()=>{
-    cur()[el.dataset.c]=el.checked;
-    el.closest('.chk').classList.toggle('done',el.checked);
-    save();
-  });
-});
+$$('[data-f]').forEach(el=>el.addEventListener('input',()=>{cur()[el.dataset.f]=el.value;save()}));
+$$('[data-c]').forEach(el=>el.addEventListener('change',()=>{cur()[el.dataset.c]=el.checked;el.closest('.chk').classList.toggle('done',el.checked);save()}));
 
-// Rollen mischen
 $('#bShuffleRoles').onclick=()=>{
-  const h=cur();
-  const names=[h.rTime,h.rBuild,h.rText,h.rPitch].map(s=>s.trim()).filter(Boolean);
-  if(names.length<2){msg('Bitte mindestens 2 Namen in die Rollenfelder eintragen.');return}
+  const h=cur(),names=[h.rTime,h.rBuild,h.rText,h.rPitch].map(s=>s.trim()).filter(Boolean);
+  if(names.length<2){msg('Bitte mindestens 2 Vornamen eintragen.');return}
   for(let i=names.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[names[i],names[j]]=[names[j],names[i]]}
-  const keys=['rTime','rBuild','rText','rPitch'];
-  keys.forEach((k,i)=>{h[k]=names[i]||''});
-  loadHack(S.cur);
-  msg('Rollen neu gemischt.');
+  ['rTime','rBuild','rText','rPitch'].forEach((k,i)=>{h[k]=names[i]||''});
+  loadHack(S.cur);msg('Aufgaben neu verteilt.');
 };
-
-// Reset
 $('#bReset').onclick=()=>{
-  if(!confirm(`Alle Felder für ${HACK_META[S.cur].short} wirklich leeren?`))return;
-  S.hacks[S.cur]=emptyHack();
-  loadHack(S.cur);
-  msg('Felder geleert.');
+  if(!confirm('Alle Felder für den Termin '+HACK_META[S.cur].short+' wirklich leeren? Das kann nicht rückgängig gemacht werden.'))return;
+  S.hacks[S.cur]=emptyHack();loadHack(S.cur);dlg.close();msg('Felder geleert.');
 };
 
-// Phasen-Timer
-let phaseSec=20*60,timerInt=null;
-const fmtTime=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
-function renderTimer(){$('#countdown').textContent=fmtTime(phaseSec)}
-
-document.querySelectorAll('.phase').forEach(p=>{
-  p.onclick=()=>{
-    clearInterval(timerInt);timerInt=null;$('#bTimerToggle').textContent='Timer starten';
-    document.querySelectorAll('.phase').forEach(x=>x.classList.remove('active'));
-    p.classList.add('active');
-    phaseSec=(+p.dataset.min)*60;
-    $('#phaseLabel').textContent=p.dataset.title;
-    renderTimer();
-  };
-});
-
-$('#bTimerToggle').onclick=()=>{
-  if(timerInt){
-    clearInterval(timerInt);timerInt=null;$('#bTimerToggle').textContent='Timer fortsetzen';
-  }else{
-    $('#bTimerToggle').textContent='Pause';
-    timerInt=setInterval(()=>{
-      if(phaseSec>0){phaseSec--;renderTimer()}
-      else{clearInterval(timerInt);timerInt=null;$('#bTimerToggle').textContent='Phase beendet'}
-    },1000);
-  }
-};
-$('#bTimerReset').onclick=()=>{
-  const act=document.querySelector('.phase.active');
-  if(act)act.click();
-};
-
-// 5-Minuten Entscheidungs-Timer
+// 5-Minuten-Entscheidung
 let decSec=300,decInt=null;
-$('#bDecStart').onclick=()=>{
-  if(decInt){clearInterval(decInt);decInt=null;decSec=300;$('#decClock').textContent='05:00';$('#bDecStart').textContent='5 Min.';return}
-  decSec=300;$('#bDecStart').textContent='Stop';
+const fmt=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+const decDefault='5 Minuten zum Entscheiden';
+$('#bDec').onclick=()=>{
+  if(decInt){clearInterval(decInt);decInt=null;$('#bDec').textContent=decDefault;return}
+  decSec=300;$('#bDec').textContent='Noch '+fmt(decSec)+' (Stopp)';
   decInt=setInterval(()=>{
-    if(decSec>0){decSec--;$('#decClock').textContent=fmtTime(decSec)}
-    else{clearInterval(decInt);decInt=null;$('#bDecStart').textContent='Fertig!'}
+    decSec--;
+    if(decSec>0)$('#bDec').textContent='Noch '+fmt(decSec)+' (Stopp)';
+    else{clearInterval(decInt);decInt=null;$('#bDec').textContent=decDefault;msg('Die 5 Minuten sind um. Bitte jetzt entscheiden, zum Beispiel per Handzeichen.')}
   },1000);
 };
 
-// Echtzeit-Uhr
-setInterval(()=>{
-  const now=new Date();
-  $('#realClock').textContent='Aktuell: '+now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Uhr';
-},1000);
-
-// Export
-function dl(name,content,type){
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([content],{type}));
-  a.download=name;document.body.appendChild(a);a.click();a.remove();
+// Speichern
+function dl(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove()}
+function exportMd(){
+  const m=HACK_META[S.cur],h=cur(),v=x=>x||'–';
+  const txt=[`# Hackathon ${m.label} · ${m.sub}`,``,
+   `## Worum geht es heute?`,v(h.topic),``,
+   `## Was fehlt oder funktioniert nicht?`,v(h.problem),``,
+   `## Für wen machen wir das?`,v(h.target),``,
+   `## Was ist um 13:05 Uhr fertig?`,v(h.prototype),``,
+   `## Was kommt in unser Ergebnis?`,v(h.notes),``,
+   `## Wer macht was?`,`- Zeit im Blick: ${v(h.rTime)}`,`- Umsetzen: ${v(h.rBuild)}`,`- Texte: ${v(h.rText)}`,`- Vorstellen: ${v(h.rPitch)}`,``,
+   `## Was machen wir später?`,v(h.parking),``,
+   `## Was muss das nächste Team wissen?`,v(h.handover)].join('\n');
+  dl('hackathon-'+m.short.replace(/\./g,'')+'-ergebnis.txt',txt,'text/plain;charset=utf-8');
+  msg('Ergebnis gespeichert.');
 }
+$('#bExpMd').onclick=exportMd;
+$('#bExpJson').onclick=()=>{dl('hackathon-sicherung-'+HACK_META[S.cur].short.replace(/\./g,'')+'.json',JSON.stringify(S,null,2),'application/json');msg('Sicherung gespeichert.')};
 
-$('#bExpMd').onclick=()=>{
-  const m=HACK_META[S.cur],h=cur();
-  const md=[
-    `# ${m.label}`,
-    `**Themenbereich & Titel:** ${h.topic||'—'}`,
-    ``,
-    `## 1. Ausgangslage / Problemstellung`,
-    h.problem||'—',
-    ``,
-    `## 2. Zielgruppe & konkreter Nutzen`,
-    h.target||'—',
-    ``,
-    `## 3. Tages-Prototyp (Ergebnis)`,
-    h.prototype||'—',
-    ``,
-    `## 4. Gesammelte Bausteine & Inhalte`,
-    h.notes||'—',
-    ``,
-    `## 5. Team-Rollen`,
-    `- Zeit & Fokus: ${h.rTime||'—'}`,
-    `- Prototyp / Tools: ${h.rBuild||'—'}`,
-    `- Text & Struktur: ${h.rText||'—'}`,
-    `- Showcase / Pitch: ${h.rPitch||'—'}`,
-    ``,
-    `## 6. Themen-Parkplatz`,
-    h.parking||'—',
-    ``,
-    `## 7. Übergabe-Notiz`,
-    h.handover||'—'
-  ].join('\n');
-  dl(`${m.short.toLowerCase().replace(/\s+/g,'-')}-ergebnis.md`,md,'text/markdown;charset=utf-8');
-  msg('Markdown-Dokumentation gespeichert.');
-};
-
-$('#bExpJson').onclick=()=>{
-  dl(`hackathon-cockpit-backup-${HACK_META[S.cur].short.toLowerCase().replace(/\s+/g,'-')}.json`,JSON.stringify(S,null,2),'application/json');
-  msg('JSON-Backup gespeichert.');
-};
-
-loadHack(0);
+loadHack(S.cur);showPhase();
+setInterval(tick,30000);
 </script>
 </body>
 </html>
